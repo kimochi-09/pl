@@ -36,18 +36,12 @@
   }
   #app{position:relative; width:100%; height:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 40px rgba(0,0,0,.5);}
 
-  /* DESKTOP FRAME: on wide screens, show the game as a centered phone-like frame instead of stretching full-bleed */
+  /* DESKTOP: kéo rộng vừa màn hình máy tính thay vì thu nhỏ dạng khung điện thoại */
   @media (min-width:701px){
-    html,body{ overflow:auto; }
-    body{
-      display:flex; align-items:center; justify-content:center; min-height:100vh;
-      background:radial-gradient(circle at 50% 20%, #12507e 0%, #04263f 55%, #01121e 100%);
-      padding:30px 0;
-    }
     #app{
-      width:420px; height:860px; max-height:92vh;
-      border-radius:34px; border:8px solid #041826;
-      box-shadow:0 0 0 2px rgba(255,255,255,.06), 0 30px 70px rgba(0,0,0,.6);
+      max-width:1100px;
+      border-radius:0;
+      box-shadow:none;
     }
   }
 
@@ -720,7 +714,39 @@ function buildFishList(){
   push(mythicNames,"mythic");
   return list;
 }
-const FISH_LIST = buildFishList();
+let FISH_LIST = buildFishList(); // fallback ban đầu, sẽ được thay bằng dữ liệu Firebase (đồng bộ cho mọi người chơi)
+let fishDataLoaded = false;
+
+function fishDataToFirebaseObj(list){
+  const obj = {};
+  list.forEach(f=>{ obj[f.id] = {name:f.name, rarity:f.rarity, icon:f.icon, price:f.price}; });
+  return obj;
+}
+
+function attachFishDataSync(){
+  db.ref('fishData').on('value', (snap)=>{
+    const val = snap.val();
+    if(!val){
+      // Chưa có dữ liệu trên Firebase (lần đầu) -> khởi tạo từ danh sách mặc định
+      if(!fishDataLoaded){
+        db.ref('fishData').set(fishDataToFirebaseObj(FISH_LIST)).catch(()=>{});
+      }
+      return;
+    }
+    const list = Object.keys(val).map(id=>{
+      const f = val[id];
+      return {id: isNaN(id)?id:Number(id), name:f.name, rarity:f.rarity, icon:f.icon, price:Number(f.price)||0};
+    });
+    if(list.length){
+      FISH_LIST = list;
+      fishDataLoaded = true;
+      // Cập nhật lại giao diện nếu đang mở, để thấy thay đổi ngay khi admin sửa
+      try{ if(typeof renderShop==='function') renderShop(); }catch(e){}
+      try{ if(typeof renderInventory==='function') renderInventory(); }catch(e){}
+    }
+  });
+}
+attachFishDataSync();
 
 const RODS = [
   {id:"tre", name:"Cần Tre Tân Thủ", icon:"🎋", price:0, bonus:{}, desc:"Cần mặc định cho người mới chơi."},

@@ -369,6 +369,7 @@
       <span id="accountLabel">Đăng nhập</span>
     </button>
     <div style="display:flex; gap:6px;">
+      <button id="bossRoomBtn" class="stat" style="cursor:pointer; background:linear-gradient(180deg,#ffe08a,var(--gold-dark)); color:#3a2400; font-weight:800;" title="Phòng Đại Ngư"><span class="ic">🐉</span></button>
       <button id="soundToggleBtn" class="stat" style="cursor:pointer;"><span id="soundIcon">🔊</span></button>
       <div class="stat"><span class="ic">💰</span><span id="coinDisplay">0</span></div>
       <div class="stat"><span class="ic">🐟</span><span id="fishCountDisplay">0/60</span></div>
@@ -1703,6 +1704,16 @@ navBtns.forEach(btn=>{
 document.querySelectorAll('.closeBtn[data-close]').forEach(btn=>{
   btn.addEventListener('click', ()=>{ SoundEngine.sfx.close(); goToGameTab(); });
 });
+
+/* ============== PHÒNG ĐẠI NGƯ ============== */
+const bossRoomBtn = document.getElementById('bossRoomBtn');
+if(bossRoomBtn){
+  bossRoomBtn.addEventListener('click', ()=>{
+    SoundEngine.unlock();
+    SoundEngine.sfx.click();
+    window.location.href = 'daingu.html';
+  });
+}
 
 /* ============== INIT ============== */
 updateHeader();

@@ -702,13 +702,13 @@ function buildFishList(){
   const list = [];
   let id=1;
   function push(names, rarityKey){
-    names.forEach(n=>{
-      const r = RARITIES[rarityKey];
+    const r = RARITIES[rarityKey];
+    names.forEach((n,i)=>{
       list.push({
         id:id++,
         name:n,
         rarity:rarityKey,
-        icon:r.icons[Math.floor(Math.random()*r.icons.length)],
+        icon:r.icons[i % r.icons.length],
         price: Math.round((r.priceRange[0] + Math.random()*(r.priceRange[1]-r.priceRange[0]))/1)
       });
     });
@@ -1205,6 +1205,7 @@ function biteFish(){
   SoundEngine.sfx.bite();
   pendingFish = rollFish();
   fishingState='biting';
+  fishSilhouette.textContent = pendingFish.icon;
   fishSilhouette.style.display='block';
   hook.style.top='170px';
   castBtn.textContent='💥 THU CẦN!';
@@ -1218,7 +1219,7 @@ function biteFish(){
   currentHits = 0;
   missCount = 0;
 
-  statusText.textContent = `🎣 CÁ CẮN CÂU! Nhấn "Thu cần" đúng lúc con trỏ vào vùng xanh (0/${requiredHits})`;
+  statusText.textContent = `🎣 ${pendingFish.icon} ${pendingFish.name} đã cắn câu! (0/${requiredHits})`;
 
   startRhythmLoop();
 

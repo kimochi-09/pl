@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🎣 Fishing World: Chat & Chill</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg-deep:#04263f;
+    --bg-mid:#0a4a72;
+    --bg-light:#1980b8;
+    --gold:#ffd35c;
+    --gold-dark:#e0a900;
+    --panel:#0e2f4a;
+    --panel-light:#123a5c;
+    --text:#eaf6ff;
+    --text-dim:#9fc4de;
+    --common:#b9c7d3;
+    --uncommon:#3ddc84;
+    --rare:#4fb3ff;
+    --epic:#c163ff;
+    --mythic:#ff7a45;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(180deg,#0d3a5c 0%, var(--bg-deep) 60%, #021625 100%);
+    color:var(--text);
+    overflow:hidden;
+    touch-action:manipulation;
+  }
+  #app{position:relative; width:100%; height:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 40px rgba(0,0,0,.5);}
+
+  /* DESKTOP FRAME: on wide screens, show the game as a centered phone-like frame instead of stretching full-bleed */
+  @media (min-width:701px){
+    html,body{ overflow:auto; }
+    body{
+      display:flex; align-items:center; justify-content:center; min-height:100vh;
+      background:radial-gradient(circle at 50% 20%, #12507e 0%, #04263f 55%, #01121e 100%);
+      padding:30px 0;
+    }
+    #app{
+      width:420px; height:860px; max-height:92vh;
+      border-radius:34px; border:8px solid #041826;
+      box-shadow:0 0 0 2px rgba(255,255,255,.06), 0 30px 70px rgba(0,0,0,.6);
+    }
+  }
+
+  /* HEADER */
+  #header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; background:rgba(2,20,34,.85); backdrop-filter:blur(4px);
+    border-bottom:1px solid rgba(255,255,255,.08); z-index:20; flex-shrink:0;
+  }
+  #header .stat{display:flex; align-items:center; gap:4px; font-weight:700; font-size:14px; background:rgba(255,255,255,.06); padding:5px 9px; border-radius:20px;}
+  #soundToggleBtn{border:none; font-size:15px; padding:5px 9px; line-height:1;}
+  #header .stat .ic{font-size:15px;}
+  #playerName{font-size:12px; color:var(--text-dim); font-weight:600;}
+
+  /* ACCOUNT BUTTON */
+  #accountBtn{
+    display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:5px 10px 5px 5px;
+    color:var(--text); font-size:11.5px; font-weight:700;
+  }
+  #accountBtn .avatarIc{
+    width:24px; height:24px; border-radius:50%; background:var(--gold); color:#3a2400;
+    display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0;
+    overflow:hidden;
+  }
+  #accountBtn.loggedIn .avatarIc{background:var(--uncommon); color:#04351f;}
+
+  /* AUTH MODAL */
+  #authModalWrap{
+    position:absolute; inset:0; background:rgba(2,10,18,.75); z-index:90;
+    display:none; align-items:center; justify-content:center; padding:20px;
+  }
+  #authModalWrap.show{display:flex;}
+  #authModal{
+    background:var(--panel); border-radius:18px; padding:22px 20px; width:100%; max-width:340px;
+    border:1px solid rgba(255,255,255,.08); box-shadow:0 12px 40px rgba(0,0,0,.5);
+  }
+  #authModal h3{margin:0 0 4px; font-size:19px; font-weight:800;}
+  #authModal .authSub{font-size:12.5px; color:var(--text-dim); margin-bottom:16px;}
+  #authModal input{
+    width:100%; background:var(--bg-deep); border:1px solid rgba(255,255,255,.12); border-radius:10px;
+    padding:12px 14px; color:var(--text); font-size:14px; margin-bottom:10px; outline:none;
+  }
+  #authModal input:focus{border-color:var(--gold);}
+  #authModal .authBtn{
+    width:100%; background:linear-gradient(180deg,#ffe08a,var(--gold-dark)); color:#3a2400; border:none;
+    border-radius:10px; padding:13px; font-weight:800; font-size:14.5px; margin-top:4px; box-shadow:0 4px 0 #9e6f00;
+  }
+  #authModal .authBtn:disabled{opacity:.6;}
+  #authSwitch{text-align:center; font-size:12.5px; color:var(--text-dim); margin-top:14px;}
+  #authSwitch a{color:var(--gold); font-weight:700; text-decoration:none;}
+  #authError{color:#ff6b6b; font-size:12px; margin-top:2px; margin-bottom:6px; min-height:14px;}
+  #authClose{
+    position:absolute; top:14px; right:14px; background:rgba(255,255,255,.08); border:none;
+    width:30px; height:30px; border-radius:50%; color:var(--text); font-size:15px;
+  }
+  #authModal{position:relative;}
+  #accountPanelBody{padding-top:6px;}
+  .accInfoRow{display:flex; justify-content:space-between; padding:12px 4px; border-bottom:1px solid rgba(255,255,255,.06); font-size:13.5px;}
+  .accInfoRow span:first-child{color:var(--text-dim);}
+  .logoutBtn{
+    width:100%; background:rgba(255,107,107,.15); color:#ff8a8a; border:1px solid rgba(255,107,107,.3);
+    border-radius:12px; padding:13px; font-weight:800; font-size:14px; margin-top:20px;
+  }
+
+  /* AVATAR PICKER */
+  #accAvatarBig{
+    width:72px; height:72px; border-radius:50%; background:var(--gold); color:#3a2400; font-size:32px;
+    display:flex; align-items:center; justify-content:center; margin:0 auto 8px; position:relative;
+    border:none; overflow:hidden; padding:0; box-sizing:border-box; -webkit-appearance:none; appearance:none;
+  }
+  #accAvatarBig img{display:block;}
+  .nameRow{display:flex; align-items:center; justify-content:center; gap:6px;}
+  .nameEditBtn{
+    background:rgba(255,255,255,.08); border:none; color:var(--text-dim); font-size:12px;
+    width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;
+  }
+  .nameEditRow{display:flex; align-items:center; justify-content:center; gap:6px; margin-top:4px;}
+  .nameEditRow input{
+    background:var(--bg-deep); border:1px solid rgba(255,255,255,.15); border-radius:8px; color:var(--text);
+    padding:7px 10px; font-size:13.5px; width:150px; text-align:center;
+  }
+  .nameEditRow button{
+    border:none; border-radius:8px; padding:7px 10px; font-weight:700; font-size:12.5px;
+  }
+  .nameEditRow .nameSaveBtn{background:var(--gold); color:#3a2400;}
+  .nameEditRow .nameCancelBtn{background:rgba(255,255,255,.08); color:var(--text);}
+  #accAvatarBig .editBadge{
+    position:absolute; bottom:-2px; right:-2px; width:24px; height:24px; border-radius:50%;
+    background:var(--panel); border:2px solid var(--bg-deep); font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .uploadAvatarBtn{
+    display:block; background:linear-gradient(180deg,#ffe08a,var(--gold-dark)); color:#3a2400; border:none;
+    border-radius:12px; padding:12px; font-weight:800; font-size:13px; box-shadow:0 4px 0 #9e6f00;
+  }
+
+  /* MAIN GAME AREA */
+  #gameArea{
+    position:relative; flex:1; overflow:hidden;
+    background:linear-gradient(180deg,#1c6ea3 0%, #0f4f7f 40%, #072f4d 100%);
+  }
+  .bubble{position:absolute; bottom:-20px; border-radius:50%; background:rgba(255,255,255,.15); animation:rise linear infinite;}
+  @keyframes rise{ to{ transform:translateY(-120vh); opacity:0;} }
+
+  #waterLine{position:absolute; top:0; left:0; right:0; height:6px; background:linear-gradient(90deg,#2fa9e0,#1980b8,#2fa9e0); opacity:.6;}
+
+  #rodArea{
+    position:absolute; top:20px; left:50%; transform:translateX(-50%);
+    text-align:center; z-index:5;
+  }
+  #rodIcon{font-size:34px; filter:drop-shadow(0 3px 6px rgba(0,0,0,.4));}
+  #line{
+    position:absolute; left:50%; top:50px; width:2px; background:rgba(255,255,255,.5);
+    transform:translateX(-50%); transition:height .3s;
+  }
+  #hook{
+    position:absolute; left:50%; transform:translateX(-50%); font-size:20px;
+    transition:top .4s ease-in-out;
+  }
+
+  #catchZone{
+    position:absolute; left:50%; top:55%; transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:14px; z-index:10;
+  }
+  #fishSilhouette{font-size:60px; animation:wiggle .4s infinite alternate;}
+  @keyframes wiggle{ from{transform:rotate(-8deg);} to{transform:rotate(8deg);} }
+
+  #statusText{
+    text-align:center; font-size:15px; font-weight:700; color:var(--gold);
+    text-shadow:0 2px 6px rgba(0,0,0,.5); margin-top:6px; min-height:20px;
+  }
+
+  #castBtn{
+    position:absolute; bottom:18px; left:50%; transform:translateX(-50%);
+    background:linear-gradient(180deg,#ffe08a,var(--gold-dark));
+    color:#3a2400; border:none; border-radius:40px; padding:16px 40px;
+    font-size:17px; font-weight:800; box-shadow:0 6px 0 #9e6f00, 0 10px 18px rgba(0,0,0,.4);
+    cursor:pointer; z-index:15; letter-spacing:.5px;
+    transition:transform .1s;
+  }
+  #castBtn:active{transform:translateX(-50%) translateY(4px); box-shadow:0 2px 0 #9e6f00, 0 4px 10px rgba(0,0,0,.4);}
+  #castBtn.pulled{animation:pulse .5s infinite;}
+  @keyframes pulse{ 0%,100%{transform:translateX(-50%) scale(1);} 50%{transform:translateX(-50%) scale(1.08);} }
+  #castBtn:disabled{opacity:.5; cursor:default;}
+
+  #comboBar{
+    position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+    width:84%; max-width:320px; height:14px; background:rgba(0,0,0,.35);
+    border-radius:10px; overflow:hidden; display:none; border:1px solid rgba(255,255,255,.2);
+  }
+  #comboFill{height:100%; width:0%; background:linear-gradient(90deg,var(--gold),#fff3c0); transition:width .05s linear;}
+
+  /* RHYTHM TIMING BAR */
+  #rhythmWrap{
+    position:absolute; bottom:130px; left:50%; transform:translateX(-50%);
+    width:84%; max-width:320px; display:none; z-index:16;
+  }
+  #rhythmTrack{
+    position:relative; width:100%; height:22px; background:rgba(0,0,0,.4);
+    border-radius:12px; border:1px solid rgba(255,255,255,.25); overflow:hidden;
+  }
+  #rhythmZone{
+    position:absolute; top:0; bottom:0; background:rgba(61,220,132,.45);
+    border-left:2px solid var(--uncommon); border-right:2px solid var(--uncommon);
+  }
+  #rhythmCursor{
+    position:absolute; top:-4px; bottom:-4px; width:5px; background:#fff;
+    border-radius:3px; box-shadow:0 0 8px rgba(255,255,255,.8);
+    left:0%;
+  }
+  #rhythmHint{
+    text-align:center; font-size:11.5px; color:var(--text-dim); margin-top:5px; font-weight:700;
+  }
+  .missFlash{animation:missFlash .3s;}
+  @keyframes missFlash{ 0%,100%{filter:none;} 50%{filter:brightness(2) hue-rotate(-40deg);} }
+
+  /* FLOATING CATCH TOAST */
+  .catchPopup{
+    position:absolute; left:50%; top:40%; transform:translate(-50%,-50%) scale(.5);
+    background:var(--panel); border:2px solid var(--gold); border-radius:18px;
+    padding:20px 26px; text-align:center; z-index:100; opacity:0;
+    box-shadow:0 10px 40px rgba(0,0,0,.6);
+    animation:popIn .4s forwards;
+  }
+  @keyframes popIn{ to{ transform:translate(-50%,-50%) scale(1); opacity:1;} }
+  .catchPopup .cfish{font-size:54px;}
+  .catchPopup .cname{font-size:19px; font-weight:800; margin-top:4px;}
+  .catchPopup .crarity{font-size:12px; font-weight:700; margin-top:2px; padding:3px 10px; border-radius:12px; display:inline-block;}
+  .catchPopup .cweight{font-size:13px; color:var(--text-dim); margin-top:6px;}
+  .catchPopup .ccoin{font-size:15px; color:var(--gold); font-weight:700; margin-top:4px;}
+  .catchPopup .cclose{margin-top:14px; background:var(--gold); border:none; padding:9px 24px; border-radius:20px; font-weight:700; color:#3a2400;}
+
+  /* BOTTOM NAV */
+  #nav{
+    display:flex; background:rgba(2,20,34,.92); border-top:1px solid rgba(255,255,255,.08);
+    flex-shrink:0; z-index:20;
+  }
+  .navBtn{
+    flex:1; text-align:center; padding:9px 2px 8px; background:none; border:none; color:var(--text-dim);
+    font-size:11px; font-weight:700; display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .navBtn .navIc{font-size:20px;}
+  .navBtn.active{color:var(--gold);}
+
+  /* PANELS (overlay screens) */
+  .panel{
+    position:absolute; inset:0; background:var(--bg-deep); z-index:30;
+    display:none; flex-direction:column; overflow:hidden;
+  }
+  .panel.show{display:flex;}
+  .panelHeader{
+    padding:14px 16px 10px; font-size:18px; font-weight:800; border-bottom:1px solid rgba(255,255,255,.08);
+    display:flex; align-items:center; justify-content:space-between; flex-shrink:0; gap:10px;
+  }
+  .panelHeader .phTitle{flex:1; display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .closeBtn{
+    background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.15); color:var(--text);
+    width:34px; height:34px; border-radius:50%; font-size:17px; font-weight:700;
+    display:flex; align-items:center; justify-content:center; flex-shrink:0; line-height:1;
+  }
+  .closeBtn:active{background:rgba(255,255,255,.18);}
+  .panelBody{flex:1; overflow-y:auto; padding:10px 12px 90px;}
+
+  /* SHOP */
+  .rodCard{
+    background:var(--panel); border-radius:14px; padding:14px; margin-bottom:10px;
+    border:2px solid rgba(255,255,255,.06); display:flex; gap:12px; align-items:center;
+  }
+  .rodCard.owned{border-color:var(--uncommon);}
+  .rodCard.equipped{border-color:var(--gold); background:var(--panel-light);}
+  .rodIcon{font-size:34px; width:44px; text-align:center;}
+  .rodInfo{flex:1;}
+  .rodInfo .rname{font-weight:800; font-size:14.5px;}
+  .rodInfo .rdesc{font-size:12px; color:var(--text-dim); margin-top:2px;}
+  .rodBtn{
+    background:var(--gold); color:#3a2400; border:none; border-radius:10px; padding:9px 12px;
+    font-weight:800; font-size:12.5px; white-space:nowrap;
+  }
+  .rodBtn.disabled{background:#3a4a5a; color:#7f95a8;}
+  .rodBtn.equippedBtn{background:var(--uncommon); color:#04351f;}
+
+  /* COLLECTION */
+  .collectionHead{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding:0 2px;}
+  .collectionHead .cprog{font-size:13px; font-weight:700; color:var(--gold);}
+  .fishGrid{display:grid; grid-template-columns:repeat(4,1fr); gap:8px;}
+  .fishCell{
+    background:var(--panel); border-radius:12px; padding:8px 4px; text-align:center;
+    border:2px solid rgba(255,255,255,.05); position:relative;
+  }
+  .fishCell.locked{opacity:.35;}
+  .fishCell .fic{font-size:26px;}
+  .fishCell .fnm{font-size:9.5px; font-weight:700; margin-top:2px; line-height:1.2; min-height:22px;}
+  .fishCell .fcount{position:absolute; top:2px; right:4px; font-size:9px; color:var(--gold); font-weight:800;}
+
+  /* INVENTORY (sell) */
+  .invItem{
+    display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:var(--panel); border-radius:12px;
+    padding:10px 12px; margin-bottom:8px;
+  }
+  .invItem .fic{font-size:28px; width:36px; text-align:center; flex-shrink:0;}
+  .invItem .iinfo{flex:1; min-width:0;}
+  .invItem .iname{font-weight:700; font-size:13.5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .invItem .iprice{font-size:11.5px; color:var(--gold); margin-top:1px;}
+  .invItem .iqty{margin-left:auto; font-weight:800; color:var(--text-dim); font-size:13px; flex-shrink:0;}
+  .invItem .sellOneBtn{
+    background:var(--gold); color:#3a2400; border:none; padding:8px 12px; border-radius:10px;
+    font-weight:800; font-size:11.5px; white-space:nowrap; margin-left:8px; flex-shrink:0;
+  }
+  .sellAllBtn{
+    position:sticky; bottom:0; width:100%; background:linear-gradient(180deg,#ffe08a,var(--gold-dark));
+    color:#3a2400; border:none; padding:14px; border-radius:14px; font-weight:800; font-size:15px;
+    margin-top:8px; box-shadow:0 6px 0 #9e6f00;
+  }
+
+  /* CHAT */
+  #chatMessages{flex:1; overflow-y:auto; padding:10px 12px; display:flex; flex-direction:column; gap:8px;}
+  .msg{display:flex; gap:8px; align-items:flex-start; max-width:85%;}
+  .msg .av{font-size:20px; flex-shrink:0; width:26px; height:26px; border-radius:50%; overflow:hidden; display:flex; align-items:center; justify-content:center;}
+  .msg .bubble2{background:var(--panel); border-radius:14px 14px 14px 4px; padding:8px 12px; font-size:13.5px; word-break:break-word; overflow-wrap:anywhere;}
+  .msg .name{font-size:11px; color:var(--text-dim); font-weight:700; margin-bottom:2px;}
+  .msg.me{align-self:flex-end; flex-direction:row-reverse;}
+  .msg.me .bubble2{background:var(--gold); color:#3a2400; border-radius:14px 14px 4px 14px;}
+  .msg.sys{align-self:center; max-width:95%;}
+  .msg.sys .bubble2{background:linear-gradient(90deg,rgba(255,211,92,.15),rgba(255,122,69,.15)); border:1px solid var(--gold); color:var(--gold); font-weight:700; text-align:center; font-size:12.5px;}
+  #chatInputBar{display:flex; gap:8px; padding:10px; border-top:1px solid rgba(255,255,255,.08); flex-shrink:0;}
+  #chatInputBar input{
+    flex:1; background:var(--panel); border:1px solid rgba(255,255,255,.1); border-radius:20px;
+    padding:11px 16px; color:var(--text); font-size:14px; outline:none;
+  }
+  #chatInputBar button{
+    background:var(--gold); color:#3a2400; border:none; border-radius:50%; width:42px; height:42px;
+    font-size:18px; flex-shrink:0;
+  }
+
+  .rarityTag{font-weight:800;}
+  .r-common{color:var(--common);}
+  .r-uncommon{color:var(--uncommon);}
+  .r-rare{color:var(--rare);}
+  .r-epic{color:var(--epic);}
+  .r-mythic{color:var(--mythic);}
+  .bg-common{background:rgba(185,199,211,.2); color:var(--common);}
+  .bg-uncommon{background:rgba(61,220,132,.2); color:var(--uncommon);}
+  .bg-rare{background:rgba(79,179,255,.2); color:var(--rare);}
+  .bg-epic{background:rgba(193,99,255,.2); color:var(--epic);}
+  .bg-mythic{background:rgba(255,122,69,.2); color:var(--mythic);}
+
+  #toastWrap{position:absolute; top:56px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:6px; align-items:center; pointer-events:none;}
+  .toast{background:rgba(0,0,0,.75); color:#fff; padding:8px 16px; border-radius:20px; font-size:13px; font-weight:600; animation:toastIn .3s;}
+  @keyframes toastIn{ from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
+
+  ::-webkit-scrollbar{width:5px;}
+  ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15); border-radius:10px;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- HEADER -->
+  <div id="header">
+    <button id="accountBtn">
+      <span class="avatarIc" id="headerAvatarIc">👤</span>
+      <span id="accountLabel">Đăng nhập</span>
+    </button>
+    <div style="display:flex; gap:6px;">
+      <button id="soundToggleBtn" class="stat" style="cursor:pointer;"><span id="soundIcon">🔊</span></button>
+      <div class="stat"><span class="ic">💰</span><span id="coinDisplay">0</span></div>
+      <div class="stat"><span class="ic">🐟</span><span id="fishCountDisplay">0/60</span></div>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div id="authModalWrap">
+    <div id="authModal">
+      <button id="authClose">✕</button>
+      <h3 id="authTitle">Đăng nhập</h3>
+      <div class="authSub" id="authSub">Đăng nhập để lưu tiến trình trên mọi thiết bị</div>
+      <div id="authError"></div>
+      <input type="text" id="authNickname" placeholder="Tên đăng nhập" autocomplete="username">
+      <input type="password" id="authPassword" placeholder="Mật khẩu (từ 6 ký tự)" autocomplete="current-password">
+      <button class="authBtn" id="authSubmitBtn">Đăng nhập</button>
+      <div id="authSwitch">Chưa có tài khoản? <a id="authSwitchLink" href="#">Đăng ký ngay</a></div>
+    </div>
+  </div>
+
+  <!-- ACCOUNT PANEL (when logged in, tap avatar) -->
+  <div class="panel" id="panel-account">
+    <div class="panelHeader">
+      <span class="phTitle">👤 Tài Khoản</span>
+      <button class="closeBtn" data-close>✕</button>
+    </div>
+    <div class="panelBody" id="accountPanelBody"></div>
+  </div>
+
+  <!-- GAME AREA -->
+  <div id="gameArea">
+    <div id="waterLine"></div>
+    <div id="rodArea">
+      <div id="rodIcon">🎣</div>
+    </div>
+    <div id="line"></div>
+    <div id="hook">🪝</div>
+
+    <div id="catchZone">
+      <div id="fishSilhouette" style="display:none;">🐟</div>
+      <div id="statusText">Nhấn "Thả câu" để bắt đầu!</div>
+    </div>
+
+    <div id="comboBar"><div id="comboFill"></div></div>
+    <div id="rhythmWrap">
+      <div id="rhythmTrack">
+        <div id="rhythmZone"></div>
+        <div id="rhythmCursor"></div>
+      </div>
+      <div id="rhythmHint">Nhấn đúng lúc con trỏ vào vùng xanh!</div>
+    </div>
+    <div id="toastWrap"></div>
+
+    <button id="castBtn">🎣 THẢ CÂU</button>
+  </div>
+
+  <!-- NAV -->
+  <div id="nav">
+    <button class="navBtn active" data-panel="game"><span class="navIc">🎣</span>Câu cá</button>
+    <button class="navBtn" data-panel="shop"><span class="navIc">🛒</span>Cửa hàng</button>
+    <button class="navBtn" data-panel="collection"><span class="navIc">📖</span>Sổ tay</button>
+    <button class="navBtn" data-panel="inventory"><span class="navIc">🎒</span>Kho đồ</button>
+    <button class="navBtn" data-panel="chat"><span class="navIc">💬</span>Chat</button>
+  </div>
+
+  <!-- SHOP PANEL -->
+  <div class="panel" id="panel-shop">
+    <div class="panelHeader">
+      <span class="phTitle">🛒 Cửa Hàng Cần Câu <span id="shopCoin" style="font-size:13px; color:var(--gold);"></span></span>
+      <button class="closeBtn" data-close>✕</button>
+    </div>
+    <div class="panelBody" id="shopList"></div>
+  </div>
+
+  <!-- COLLECTION PANEL -->
+  <div class="panel" id="panel-collection">
+    <div class="panelHeader">
+      <span class="phTitle">📖 Sổ Tay Sinh Vật Biển</span>
+      <button class="closeBtn" data-close>✕</button>
+    </div>
+    <div class="panelBody">
+      <div class="collectionHead">
+        <span style="font-size:12.5px; color:var(--text-dim);">Bộ sưu tập của bạn</span>
+        <span class="cprog" id="collectionProg">0/60</span>
+      </div>
+      <div class="fishGrid" id="fishGrid"></div>
+    </div>
+  </div>
+
+  <!-- INVENTORY PANEL -->
+  <div class="panel" id="panel-inventory">
+    <div class="panelHeader">
+      <span class="phTitle">🎒 Kho Đồ (Bán Cá)</span>
+      <button class="closeBtn" data-close>✕</button>
+    </div>
+    <div class="panelBody" id="invList" style="display:flex; flex-direction:column;"></div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="panel" id="panel-chat" style="flex-direction:column;">
+    <div class="panelHeader">
+      <span class="phTitle">💬 Chat Thế Giới <span style="font-size:11px; color:var(--uncommon);">🟢 <span id="onlineCount">0</span> online</span></span>
+      <button class="closeBtn" data-close>✕</button>
+    </div>
+    <div id="chatMessages"></div>
+    <div id="chatInputBar">
+      <input id="chatInput" type="text" placeholder="Chém gió với các cần thủ khác..." maxlength="120">
+      <button id="chatSendBtn">➤</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============== SOUND ENGINE (nhạc nền + hiệu ứng, tạo bằng Web Audio API, không cần file mp3) ============== */
+const SoundEngine = (function(){
+  let ctx = null;
+  let masterGain = null;
+  let musicGain = null;
+  let sfxGain = null;
+  let musicNodes = [];
+  let musicTimer = null;
+  let musicOn = true;
+  let unlocked = false;
+
+  function ensureCtx(){
+    if(!ctx){
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      masterGain = ctx.createGain(); masterGain.gain.value = 1; masterGain.connect(ctx.destination);
+      musicGain = ctx.createGain(); musicGain.gain.value = 0.16; musicGain.connect(masterGain);
+      sfxGain = ctx.createGain(); sfxGain.gain.value = 0.5; sfxGain.connect(masterGain);
+    }
+    if(ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  function unlock(){
+    if(unlocked) return;
+    unlocked = true;
+    ensureCtx();
+    if(musicOn) startMusic();
+  }
+  ['pointerdown','keydown','touchstart'].forEach(ev=>{
+    window.addEventListener(ev, unlock, {once:true, passive:true});
+  });
+
+  function tone(freq, startTime, dur, {type='sine', gain=0.5, attack=0.008, release=0.08, freqEnd=null, detune=0} = {}){
+    const c = ensureCtx();
+    const osc = c.createOscillator();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, startTime);
+    if(freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd,1), startTime+dur);
+    if(detune) osc.detune.value = detune;
+    const g = c.createGain();
+    g.gain.setValueAtTime(0, startTime);
+    g.gain.linearRampToValueAtTime(gain, startTime+attack);
+    g.gain.exponentialRampToValueAtTime(0.001, startTime+dur+release);
+    osc.connect(g); g.connect(sfxGain);
+    osc.start(startTime);
+    osc.stop(startTime+dur+release+0.05);
+  }
+
+  function noiseBurst(startTime, dur, {gain=0.3, filterFreq=2000, type='highpass'} = {}){
+    const c = ensureCtx();
+    const bufSize = Math.max(1, Math.floor(c.sampleRate*dur));
+    const buf = c.createBuffer(1, bufSize, c.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1) * (1 - i/bufSize);
+    const src = c.createBufferSource();
+    src.buffer = buf;
+    const filt = c.createBiquadFilter();
+    filt.type = type; filt.frequency.value = filterFreq;
+    const g = c.createGain();
+    g.gain.setValueAtTime(gain, startTime);
+    g.gain.exponentialRampToValueAtTime(0.001, startTime+dur);
+    src.connect(filt); filt.connect(g); g.connect(sfxGain);
+    src.start(startTime); src.stop(startTime+dur+0.05);
+  }
+
+  const SFX = {
+    click(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(520, t, 0.05, {type:'triangle', gain:0.25}); },
+    cast(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(280, t, 0.28, {type:'sine', gain:0.35, freqEnd:110}); noiseBurst(t, 0.15, {gain:0.12, filterFreq:3500}); },
+    bite(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(880, t, 0.09, {type:'square', gain:0.22}); tone(1180, t+0.09, 0.09, {type:'square', gain:0.22}); },
+    hit(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(660, t, 0.08, {type:'triangle', gain:0.3}); tone(990, t+0.05, 0.1, {type:'triangle', gain:0.25}); },
+    miss(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(220, t, 0.18, {type:'sawtooth', gain:0.22, freqEnd:120}); },
+    escape(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(400, t, 0.35, {type:'sawtooth', gain:0.25, freqEnd:80}); noiseBurst(t+0.05, 0.25, {gain:0.15, filterFreq:1200}); },
+    catchFish(rarity){
+      if(!unlocked) return;
+      const t = ensureCtx().currentTime;
+      const scales = {
+        common:   [523.25, 659.25, 783.99],
+        uncommon: [523.25, 659.25, 783.99, 1046.5],
+        rare:     [587.33, 739.99, 880, 1174.7],
+        epic:     [659.25, 830.61, 987.77, 1318.5, 1567.98],
+        mythic:   [659.25, 830.61, 987.77, 1318.5, 1567.98, 1975.53]
+      };
+      const notes = scales[rarity] || scales.common;
+      notes.forEach((f,i)=> tone(f, t + i*0.09, 0.22, {type:'triangle', gain:0.3, release:0.15}));
+      if(rarity==='epic' || rarity==='mythic'){
+        notes.forEach((f,i)=> tone(f*2, t + i*0.09 + 0.02, 0.18, {type:'sine', gain:0.12}));
+      }
+    },
+    buy(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(440,t,0.07,{type:'square',gain:0.25}); tone(660,t+0.07,0.12,{type:'square',gain:0.25}); },
+    sell(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(700,t,0.06,{type:'sine',gain:0.28}); tone(500,t+0.06,0.09,{type:'sine',gain:0.22}); },
+    error(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(180, t, 0.15, {type:'square', gain:0.2}); },
+    open(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(392, t, 0.06, {type:'sine', gain:0.2}); tone(523.25, t+0.06, 0.08, {type:'sine', gain:0.2}); },
+    close(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(523.25, t, 0.06, {type:'sine', gain:0.18}); tone(392, t+0.05, 0.08, {type:'sine', gain:0.18}); },
+    msg(){ if(!unlocked) return; const t=ensureCtx().currentTime; tone(700, t, 0.05, {type:'sine', gain:0.15}); },
+    login(){ if(!unlocked) return; const t=ensureCtx().currentTime; [523.25,659.25,783.99,1046.5].forEach((f,i)=>tone(f,t+i*0.08,0.16,{type:'triangle',gain:0.28})); }
+  };
+
+  /* Nhạc nền: giai điệu lặp nhẹ nhàng, êm dịu kiểu biển cả, tạo bằng oscillator theo vòng lặp hợp âm */
+  const MUSIC_SCALE = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25]; // C pentatonic-ish, êm dịu
+  const CHORD_PROG = [
+    [261.63, 329.63, 392.00],   // C
+    [220.00, 261.63, 329.63],   // Am
+    [174.61, 220.00, 261.63],   // F
+    [196.00, 246.94, 293.66]    // G
+  ];
+  let musicStep = 0;
+  let chordIdx = 0;
+
+  function scheduleMusicBar(startTime){
+    const c = ensureCtx();
+    const chord = CHORD_PROG[chordIdx % CHORD_PROG.length];
+    chordIdx++;
+    const barDur = 4.0;
+    // pad chord (dịu, nền)
+    chord.forEach(f=>{
+      const osc = c.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = f;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, startTime);
+      g.gain.linearRampToValueAtTime(0.5, startTime+0.6);
+      g.gain.linearRampToValueAtTime(0.35, startTime+barDur-0.6);
+      g.gain.linearRampToValueAtTime(0, startTime+barDur);
+      osc.connect(g); g.connect(musicGain);
+      osc.start(startTime); osc.stop(startTime+barDur+0.05);
+      musicNodes.push(osc);
+    });
+    // giai điệu lơ lửng, ngẫu nhiên nhẹ nhàng theo pentatonic, mô phỏng tiếng chuông nước
+    const noteCount = 4 + Math.floor(Math.random()*3);
+    for(let i=0;i<noteCount;i++){
+      const t = startTime + (i/noteCount)*barDur + Math.random()*0.15;
+      const note = MUSIC_SCALE[Math.floor(Math.random()*MUSIC_SCALE.length)] * (Math.random()<0.3 ? 2 : 1);
+      const osc = c.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = note;
+      const g = c.createGain();
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.22, t+0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t+1.1);
+      osc.connect(g); g.connect(musicGain);
+      osc.start(t); osc.stop(t+1.2);
+      musicNodes.push(osc);
+    }
+  }
+
+  function startMusic(){
+    if(!unlocked) return;
+    stopMusic();
+    const c = ensureCtx();
+    let nextBarTime = c.currentTime + 0.1;
+    scheduleMusicBar(nextBarTime);
+    musicTimer = setInterval(()=>{
+      nextBarTime += 4.0;
+      scheduleMusicBar(nextBarTime);
+    }, 4000);
+  }
+  function stopMusic(){
+    if(musicTimer){ clearInterval(musicTimer); musicTimer=null; }
+    musicNodes.forEach(n=>{ try{ n.stop(); }catch(e){} });
+    musicNodes = [];
+  }
+
+  function setMusicOn(on){
+    musicOn = on;
+    if(on){ if(unlocked) startMusic(); }
+    else { stopMusic(); }
+  }
+  function isMusicOn(){ return musicOn; }
+
+  return { sfx: SFX, unlock, setMusicOn, isMusicOn };
+})();
+
+
+/* ============== FIREBASE INIT ============== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDH_skpX3D9sD3zz3iiyrHnB28BIVvIMM0",
+  authDomain: "hihi-c6af6.firebaseapp.com",
+  databaseURL: "https://hihi-c6af6-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hihi-c6af6",
+  storageBucket: "hihi-c6af6.firebasestorage.app",
+  messagingSenderId: "164013580789",
+  appId: "1:164013580789:web:94227e94c6d517170f40bc"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+let currentUser = null;
+let presenceRef = null;
+let chatListenerAttached = false;
+let onlineListenerAttached = false;
+
+/* ============== DATA: 60 LOÀI CÁ ============== */
+const RARITIES = {
+  common:   {label:"Thường",     color:"common",   weight:50, priceRange:[10,50],       icons:["🐟","🐠"]},
+  uncommon: {label:"Hiếm",       color:"uncommon", weight:30, priceRange:[100,300],     icons:["🐡","🐟"]},
+  rare:     {label:"Quý",        color:"rare",     weight:14, priceRange:[500,1500],    icons:["🦈","🐬"]},
+  epic:     {label:"Huyền Thoại",color:"epic",     weight:5,  priceRange:[3000,8000],   icons:["🦑","🐙"]},
+  mythic:   {label:"Thần Thoại", color:"mythic",   weight:1,  priceRange:[20000,50000], icons:["🐉","✨"]}
+};
+
+const commonNames = ["Cá chép","Cá rô phi","Cá diếc","Cá quả","Cá trắm","Cá mè","Cá rô đồng","Cá lóc","Cá sặc","Cá bống","Cá linh","Cá thiểu","Cá lăng","Cá he","Cá đối","Cá nục","Cá cơm","Cá liệt","Cá tra","Cá basa"];
+const uncommonNames = ["Cá chẽm","Cá hồi","Cá trích","Cá trê hoàng đế","Cá măng","Cá vược","Cá đù","Cá thu","Cá nhồng","Cá hố","Cá bớp","Cá mú","Cá dứa","Cá ngát","Cá kèo"];
+const rareNames = ["Cá ngừ đại dương","Cá đuối lửa","Cá mặt trăng","Cá kiếm","Cá cờ","Cá heo xanh","Cá mập vây đen","Cá nhám búa nhỏ","Cá chim biển","Cá hô sông","Cá tầm","Cá đao"];
+const epicNames = ["Cá mập trắng","Cá táng","Cá rồng ruy băng","Cá voi lùn","Cá nhám voi con","Cá kiếm khổng lồ","Cá mập hổ","Cá đuối manta","Cá chình khổng lồ","Cá rùa biển cổ"];
+const mythicNames = ["Kraken Con","Cá chép vàng cổ đại","Cá rồng tiên"];
+
+function buildFishList(){
+  const list = [];
+  let id=1;
+  function push(names, rarityKey){
+    names.forEach(n=>{
+      const r = RARITIES[rarityKey];
+      list.push({
+        id:id++,
+        name:n,
+        rarity:rarityKey,
+        icon:r.icons[Math.floor(Math.random()*r.icons.length)],
+        price: Math.round((r.priceRange[0] + Math.random()*(r.priceRange[1]-r.priceRange[0]))/1)
+      });
+    });
+  }
+  push(commonNames,"common");
+  push(uncommonNames,"uncommon");
+  push(rareNames,"rare");
+  push(epicNames,"epic");
+  push(mythicNames,"mythic");
+  return list;
+}
+const FISH_LIST = buildFishList();
+
+const RODS = [
+  {id:"tre", name:"Cần Tre Tân Thủ", icon:"🎋", price:0, bonus:{}, desc:"Cần mặc định cho người mới chơi."},
+  {id:"thuytinh", name:"Cần Sợi Thủy Tinh", icon:"🪶", price:1000, bonus:{uncommon:10}, desc:"+10% tỷ lệ gặp cá Hiếm."},
+  {id:"carbon", name:"Cần Carbon Hiện Đại", icon:"⚙️", price:10000, bonus:{rareUp:20, speed:0.15}, desc:"+20% tỷ lệ gặp cá Quý trở lên. Giảm 15% thời gian chờ."},
+  {id:"hoanggia", name:"Cần Câu Hoàng Gia", icon:"👑", price:50000, bonus:{epic:35, sellBonus:0.10}, desc:"+35% tỷ lệ gặp cá Huyền Thoại. +10% tiền bán cá."},
+  {id:"poseidon", name:"Cần Định Mệnh Poseidon", icon:"🔱", price:200000, bonus:{mythicEpic:50, noMiss:true}, desc:"+50% tỷ lệ gặp cá Thần Thoại & Huyền Thoại. Không bao giờ câu trượt!"}
+];
+
+/* ============== STATE ============== */
+const SAVE_KEY = "fishingWorld_save_v1";
+function getDefaultState(){
+  return {
+    coins: 100,
+    ownedRods: ["tre"],
+    equippedRod: "tre",
+    inventory: {},      // fishId -> count
+    caughtIds: {},       // fishId -> {count, maxWeight}
+    nickname: "",
+    avatar: "👤",
+    playerId: Math.floor(1000+Math.random()*8999)
+  };
+}
+let state = getDefaultState();
+
+function loadLocalState(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = Object.assign(state, parsed);
+    }
+  }catch(e){}
+}
+function saveState(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(state)); }catch(e){}
+  if(currentUser){
+    db.ref('users/'+currentUser.uid+'/gameState').set(state).catch(()=>{});
+  }
+}
+loadLocalState();
+
+/* ---- Bật/tắt âm thanh ---- */
+const soundToggleBtn = document.getElementById('soundToggleBtn');
+const soundIcon = document.getElementById('soundIcon');
+let soundPref = true;
+try{ const sp = localStorage.getItem('fishingWorld_soundOn'); if(sp!==null) soundPref = sp==='1'; }catch(e){}
+SoundEngine.setMusicOn(soundPref);
+soundIcon.textContent = soundPref ? '🔊' : '🔇';
+soundToggleBtn.addEventListener('click', ()=>{
+  SoundEngine.unlock();
+  soundPref = !soundPref;
+  SoundEngine.setMusicOn(soundPref);
+  soundIcon.textContent = soundPref ? '🔊' : '🔇';
+  try{ localStorage.setItem('fishingWorld_soundOn', soundPref?'1':'0'); }catch(e){}
+  if(soundPref) SoundEngine.sfx.click();
+});
+
+
+/* ============== DOM refs ============== */
+const coinDisplay = document.getElementById('coinDisplay');
+const fishCountDisplay = document.getElementById('fishCountDisplay');
+const castBtn = document.getElementById('castBtn');
+const statusText = document.getElementById('statusText');
+const fishSilhouette = document.getElementById('fishSilhouette');
+const hook = document.getElementById('hook');
+const line = document.getElementById('line');
+const comboBar = document.getElementById('comboBar');
+const comboFill = document.getElementById('comboFill');
+const gameArea = document.getElementById('gameArea');
+const toastWrap = document.getElementById('toastWrap');
+const rhythmWrap = document.getElementById('rhythmWrap');
+const rhythmTrack = document.getElementById('rhythmTrack');
+const rhythmZone = document.getElementById('rhythmZone');
+const rhythmCursor = document.getElementById('rhythmCursor');
+const rhythmHint = document.getElementById('rhythmHint');
+
+function updateHeader(){
+  coinDisplay.textContent = state.coins.toLocaleString('vi-VN');
+  const caughtCount = Object.keys(state.caughtIds).length;
+  fishCountDisplay.textContent = caughtCount + "/60";
+  document.getElementById('shopCoin').textContent = "💰 " + state.coins.toLocaleString('vi-VN');
+}
+
+function toast(msg){
+  const t = document.createElement('div');
+  t.className='toast';
+  t.textContent = msg;
+  toastWrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 1800);
+}
+
+/* ============== AUTH UI (Tên đăng nhập + Mật khẩu) ============== */
+const accountBtn = document.getElementById('accountBtn');
+const headerAvatarIc = document.getElementById('headerAvatarIc');
+const accountLabel = document.getElementById('accountLabel');
+const authModalWrap = document.getElementById('authModalWrap');
+const authTitle = document.getElementById('authTitle');
+const authSub = document.getElementById('authSub');
+const authNickname = document.getElementById('authNickname');
+const authPassword = document.getElementById('authPassword');
+const authSubmitBtn = document.getElementById('authSubmitBtn');
+const authSwitch = document.getElementById('authSwitch');
+const authError = document.getElementById('authError');
+const authClose = document.getElementById('authClose');
+
+let authMode = 'login'; // 'login' | 'signup'
+
+// Firebase Auth cần dạng email, nên map "tên đăng nhập" -> email nội bộ ẩn với người dùng.
+const USERNAME_DOMAIN = '@fishingworld.local';
+function usernameToEmail(username){
+  const clean = username.trim().toLowerCase().replace(/[^a-z0-9_.-]/g,'');
+  return clean + USERNAME_DOMAIN;
+}
+
+function openAuthModal(mode){
+  authMode = mode;
+  authError.textContent = '';
+  authPassword.value=''; authNickname.value='';
+  if(mode==='login'){
+    authTitle.textContent='Đăng nhập';
+    authSub.textContent='Đăng nhập để lưu tiến trình trên mọi thiết bị';
+    authSubmitBtn.textContent='Đăng nhập';
+    authSwitch.innerHTML = 'Chưa có tài khoản? <a id="authSwitchLink" href="#">Đăng ký ngay</a>';
+  } else {
+    authTitle.textContent='Đăng ký tài khoản';
+    authSub.textContent='Tạo tài khoản để chơi trên mọi thiết bị & chat với cần thủ khác';
+    authSubmitBtn.textContent='Đăng ký';
+    authSwitch.innerHTML = 'Đã có tài khoản? <a id="authSwitchLink" href="#">Đăng nhập</a>';
+  }
+  document.getElementById('authSwitchLink').addEventListener('click', (e)=>{
+    e.preventDefault();
+    openAuthModal(authMode==='login' ? 'signup' : 'login');
+  });
+  authModalWrap.classList.add('show');
+}
+function closeAuthModal(){ authModalWrap.classList.remove('show'); }
+
+accountBtn.addEventListener('click', ()=>{
+  if(currentUser){
+    renderAccountPanel();
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+    document.getElementById('panel-account').classList.add('show');
+    document.querySelectorAll('.navBtn').forEach(b=>b.classList.remove('active'));
+  } else {
+    openAuthModal('login');
+  }
+});
+authClose.addEventListener('click', closeAuthModal);
+
+authSubmitBtn.addEventListener('click', async ()=>{
+  const nick = authNickname.value.trim();
+  const pass = authPassword.value;
+  authError.textContent='';
+  if(!nick || !pass){ authError.textContent='Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.'; return; }
+  if(nick.length<3){ authError.textContent='Tên đăng nhập cần từ 3 ký tự.'; return; }
+  if(pass.length<6){ authError.textContent='Mật khẩu cần từ 6 ký tự.'; return; }
+  const email = usernameToEmail(nick);
+  authSubmitBtn.disabled = true;
+  authSubmitBtn.textContent = 'Đang xử lý...';
+
+  function withTimeout(promise, ms){
+    return Promise.race([
+      promise,
+      new Promise((_,reject)=> setTimeout(()=>reject({code:'timeout'}), ms))
+    ]);
+  }
+
+  try{
+    if(authMode==='login'){
+      const cred = await withTimeout(auth.signInWithEmailAndPassword(email, pass), 12000);
+      state.nickname = nick;
+      // Nếu tài khoản cũ chưa có displayName (vd tạo trước khi có tính năng này), tự set lại cho đồng bộ.
+      if(cred && cred.user && !cred.user.displayName){
+        try{ await cred.user.updateProfile({displayName: nick}); }catch(e2){}
+      }
+      toast('Đăng nhập thành công!');
+    } else {
+      const cred = await withTimeout(auth.createUserWithEmailAndPassword(email, pass), 12000);
+      await withTimeout(cred.user.updateProfile({displayName: nick}), 8000);
+      state.nickname = nick;
+      toast('Tạo tài khoản thành công!');
+    }
+    SoundEngine.sfx.login();
+    closeAuthModal();
+  }catch(e){
+    if(e && e.code === 'timeout'){
+      authError.textContent = 'Không kết nối được tới máy chủ. Kiểm tra mạng hoặc thử lại (nếu đang mở file trực tiếp bằng file://, hãy mở qua http/https).';
+    } else {
+      authError.textContent = (e && translateAuthError(e.code)) || (e && e.message) || 'Đã có lỗi xảy ra, vui lòng thử lại.';
+    }
+  } finally {
+    authSubmitBtn.disabled = false;
+    authSubmitBtn.textContent = authMode==='login' ? 'Đăng nhập' : 'Đăng ký';
+  }
+});
+
+function translateAuthError(code){
+  const map = {
+    'auth/email-already-in-use':'Tên đăng nhập này đã được sử dụng.',
+    'auth/invalid-email':'Tên đăng nhập không hợp lệ.',
+    'auth/weak-password':'Mật khẩu quá yếu (cần từ 6 ký tự).',
+    'auth/user-not-found':'Tài khoản không tồn tại.',
+    'auth/wrong-password':'Sai mật khẩu.',
+    'auth/invalid-credential':'Tên đăng nhập hoặc mật khẩu không đúng.',
+    'auth/too-many-requests':'Bạn thử sai quá nhiều lần, vui lòng thử lại sau.'
+  };
+  return map[code];
+}
+
+function isImageAvatar(av){ return typeof av === 'string' && av.startsWith('data:image'); }
+function avatarInnerHtml(av, size){
+  if(isImageAvatar(av)){
+    return `<img src="${av}" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">`;
+  }
+  return av || '👤';
+}
+
+function renderAccountPanel(){
+  const body = document.getElementById('accountPanelBody');
+  const nick = state.nickname || currentUser.displayName || 'Cần thủ';
+  const curAvatar = state.avatar || '👤';
+  body.innerHTML = `
+    <div style="text-align:center; padding:14px 0 4px;">
+      <button id="accAvatarBig">${avatarInnerHtml(curAvatar)}<span class="editBadge">✏️</span></button>
+      <div id="nameDisplayWrap" class="nameRow">
+        <div style="font-weight:800; font-size:16px;">${escapeHtml(nick)}</div>
+        <button class="nameEditBtn" id="nameEditBtn" title="Đổi tên hiển thị">✏️</button>
+      </div>
+      <div id="nameEditRow" class="nameEditRow" style="display:none;">
+        <input type="text" id="nameEditInput" maxlength="20" placeholder="Tên hiển thị">
+        <button class="nameSaveBtn" id="nameSaveBtn">Lưu</button>
+        <button class="nameCancelBtn" id="nameCancelBtn">Hủy</button>
+      </div>
+      <div style="font-size:12px; color:var(--text-dim); margin-top:2px;">Cần thủ đã xác thực</div>
+    </div>
+    <button class="uploadAvatarBtn" id="uploadAvatarBtn" style="max-width:260px; margin:0 auto 18px; display:block;">📤 Đổi ảnh đại diện</button>
+    <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
+    <div class="accInfoRow"><span>Tên đăng nhập</span><span style="font-weight:700;">${escapeHtml(nick)}</span></div>
+    <div class="accInfoRow"><span>Xu hiện có</span><span style="color:var(--gold); font-weight:700;">${state.coins.toLocaleString('vi-VN')} 💰</span></div>
+    <div class="accInfoRow"><span>Cá đã sưu tầm</span><span>${Object.keys(state.caughtIds).length}/60 🐟</span></div>
+    <div class="accInfoRow"><span>Cần đang dùng</span><span>${(RODS.find(r=>r.id===state.equippedRod)||{}).name||''}</span></div>
+    <button class="logoutBtn" id="logoutBtn">Đăng xuất</button>
+  `;
+  document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+    await auth.signOut();
+    goToGameTab();
+    toast('Đã đăng xuất.');
+  });
+
+  const fileInput = document.getElementById('avatarFileInput');
+  document.getElementById('uploadAvatarBtn').addEventListener('click', ()=> fileInput.click());
+  document.getElementById('accAvatarBig').addEventListener('click', ()=> fileInput.click());
+  fileInput.addEventListener('change', (e)=>{
+    const file = e.target.files && e.target.files[0];
+    if(!file) return;
+    if(!file.type.startsWith('image/')){ toast('Vui lòng chọn một tệp ảnh.'); return; }
+    resizeImageToDataUrl(file, 160).then(dataUrl=>{
+      state.avatar = dataUrl;
+      saveState();
+      updateAvatarDisplay();
+      renderAccountPanel();
+      toast('Đã cập nhật ảnh đại diện!');
+    }).catch(()=> toast('Không thể xử lý ảnh này, thử ảnh khác nhé.'));
+    fileInput.value = '';
+  });
+
+  const nameDisplayWrap = document.getElementById('nameDisplayWrap');
+  const nameEditRow = document.getElementById('nameEditRow');
+  const nameEditInput = document.getElementById('nameEditInput');
+  document.getElementById('nameEditBtn').addEventListener('click', ()=>{
+    nameEditInput.value = nick;
+    nameDisplayWrap.style.display = 'none';
+    nameEditRow.style.display = 'flex';
+    nameEditInput.focus();
+    nameEditInput.select();
+  });
+  document.getElementById('nameCancelBtn').addEventListener('click', ()=>{
+    nameEditRow.style.display = 'none';
+    nameDisplayWrap.style.display = 'flex';
+  });
+  document.getElementById('nameSaveBtn').addEventListener('click', saveDisplayName);
+  nameEditInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') saveDisplayName();
+    if(e.key === 'Escape'){ nameEditRow.style.display='none'; nameDisplayWrap.style.display='flex'; }
+  });
+  async function saveDisplayName(){
+    const newName = nameEditInput.value.trim();
+    if(!newName){ toast('Vui lòng nhập tên hiển thị.'); return; }
+    if(newName.length < 2){ toast('Tên hiển thị cần từ 2 ký tự.'); return; }
+    state.nickname = newName;
+    saveState();
+    if(currentUser){
+      try{ await currentUser.updateProfile({displayName: newName}); }catch(e){}
+      if(presenceRef){ presenceRef.update({nickname: newName}).catch(()=>{}); }
+    }
+    accountLabel.textContent = newName;
+    renderAccountPanel();
+    toast('Đã cập nhật tên hiển thị!');
+  }
+}
+
+/* Resize + nén ảnh do người dùng tải lên thành ảnh vuông nhỏ (JPEG) để lưu gọn trong localStorage/Firebase */
+function resizeImageToDataUrl(file, targetSize){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onerror = ()=> reject(new Error('read fail'));
+    reader.onload = ()=>{
+      const img = new Image();
+      img.onerror = ()=> reject(new Error('img fail'));
+      img.onload = ()=>{
+        const canvas = document.createElement('canvas');
+        canvas.width = targetSize; canvas.height = targetSize;
+        const ctx = canvas.getContext('2d');
+        const side = Math.min(img.width, img.height);
+        const sx = (img.width-side)/2, sy = (img.height-side)/2;
+        ctx.drawImage(img, sx, sy, side, side, 0, 0, targetSize, targetSize);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ---- Auth state changes: load/merge cloud state, presence ---- */
+auth.onAuthStateChanged(async (user)=>{
+  currentUser = user;
+  if(user){
+    accountBtn.classList.add('loggedIn');
+    accountLabel.textContent = state.nickname || user.displayName || 'Tài khoản';
+    try{
+      const snap = await db.ref('users/'+user.uid+'/gameState').once('value');
+      const cloud = snap.val();
+      if(cloud){
+        state = Object.assign(state, cloud);
+      } else {
+        db.ref('users/'+user.uid+'/gameState').set(state).catch(()=>{});
+      }
+    }catch(e){}
+    updateHeader();
+    updateAvatarDisplay();
+    setupPresence(user);
+    attachRealtimeChat();
+  } else {
+    accountBtn.classList.remove('loggedIn');
+    accountLabel.textContent = 'Đăng nhập';
+    // Đăng xuất: xóa sạch dữ liệu của tài khoản vừa dùng (xu, cá, avatar...) khỏi màn hình và bộ nhớ máy,
+    // tránh hiện nhầm số liệu của tài khoản cũ khi chưa đăng nhập lại.
+    state = getDefaultState();
+    try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+    updateHeader();
+    updateAvatarDisplay();
+    if(presenceRef){ presenceRef.remove().catch(()=>{}); presenceRef=null; }
+  }
+});
+
+function updateAvatarDisplay(){
+  if(currentUser){
+    headerAvatarIc.innerHTML = avatarInnerHtml(state.avatar || '👤');
+  } else {
+    headerAvatarIc.innerHTML = '👤';
+  }
+}
+
+function setupPresence(user){
+  if(presenceRef){ presenceRef.remove().catch(()=>{}); }
+  presenceRef = db.ref('presence/'+user.uid);
+  const nick = state.nickname || user.displayName || 'Cần thủ';
+  db.ref('.info/connected').on('value', (snap)=>{
+    if(snap.val()===true){
+      presenceRef.onDisconnect().remove();
+      presenceRef.set({ nickname: nick, ts: firebase.database.ServerValue.TIMESTAMP });
+    }
+  });
+  attachOnlineListener();
+}
+
+function attachOnlineListener(){
+  if(onlineListenerAttached) return;
+  onlineListenerAttached = true;
+  db.ref('presence').on('value', (snap)=>{
+    const count = snap.exists() ? Object.keys(snap.val()).length : 0;
+    const el = document.getElementById('onlineCount');
+    if(el) el.textContent = count;
+  });
+}
+
+/* ============== BUBBLES BG ============== */
+function spawnBubbles(){
+  for(let i=0;i<14;i++){
+    const b = document.createElement('div');
+    b.className='bubble';
+    const size = 4+Math.random()*10;
+    b.style.width=size+'px'; b.style.height=size+'px';
+    b.style.left = Math.random()*100+'%';
+    b.style.animationDuration = (4+Math.random()*6)+'s';
+    b.style.animationDelay = (Math.random()*6)+'s';
+    gameArea.appendChild(b);
+  }
+}
+spawnBubbles();
+
+/* ============== FISHING LOGIC ============== */
+let fishingState = "idle"; // idle -> waiting -> biting -> reeling
+let waitTimer=null, biteTimeout=null;
+const rodBonus = ()=> RODS.find(r=>r.id===state.equippedRod).bonus;
+
+function getRodSpeedMultiplier(){
+  const b = rodBonus();
+  return 1 - (b.speed||0);
+}
+
+function rollFish(){
+  const b = rodBonus();
+  // base weights
+  let weights = {common:50, uncommon:30, rare:14, epic:5, mythic:1};
+  if(b.uncommon) weights.uncommon += b.uncommon;
+  if(b.rareUp){ weights.rare += b.rareUp; weights.epic += b.rareUp*0.5; }
+  if(b.epic){ weights.epic += b.epic; }
+  if(b.mythicEpic){ weights.mythic += b.mythicEpic*0.4; weights.epic += b.mythicEpic; }
+  // normalize pick
+  const total = Object.values(weights).reduce((a,c)=>a+c,0);
+  let r = Math.random()*total;
+  let rarity = 'common';
+  for(const key of ['common','uncommon','rare','epic','mythic']){
+    if(r < weights[key]){ rarity=key; break; }
+    r -= weights[key];
+  }
+  const pool = FISH_LIST.filter(f=>f.rarity===rarity);
+  const fish = pool[Math.floor(Math.random()*pool.length)];
+  return fish;
+}
+
+function resetVisual(){
+  fishSilhouette.style.display='none';
+  hook.style.top='60px';
+  line.style.height='10px';
+  comboBar.style.display='none';
+  comboFill.style.width='0%';
+  rhythmWrap.style.display='none';
+  castBtn.classList.remove('pulled');
+  stopRhythmLoop();
+}
+
+castBtn.addEventListener('click', ()=>{
+  SoundEngine.unlock();
+  if(!currentUser){
+    toast('Vui lòng đăng nhập để bắt đầu câu cá!');
+    openAuthModal('login');
+    return;
+  }
+  if(fishingState==='idle'){
+    startCast();
+  } else if(fishingState==='biting'){
+    tryReelHit();
+  }
+});
+
+function startCast(){
+  SoundEngine.sfx.cast();
+  fishingState='waiting';
+  castBtn.disabled=true;
+  statusText.textContent='Đang thả câu... chờ cá cắn câu 🌊';
+  hook.style.top='140px';
+  line.style.height='140px';
+
+  const baseWait = 1800 + Math.random()*2600;
+  const wait = baseWait * getRodSpeedMultiplier();
+  waitTimer = setTimeout(()=>{
+    biteFish();
+  }, wait);
+  castBtn.disabled=false;
+  castBtn.textContent='⏳ Đang chờ...';
+}
+
+let pendingFish = null;
+let requiredHits = 3;
+let currentHits = 0;
+
+function biteFish(){
+  SoundEngine.sfx.bite();
+  pendingFish = rollFish();
+  fishingState='biting';
+  fishSilhouette.style.display='block';
+  hook.style.top='170px';
+  castBtn.textContent='💥 THU CẦN!';
+  castBtn.classList.add('pulled');
+  comboBar.style.display='block';
+  comboFill.style.width='0%';
+
+  // Higher rarity fish require more successful hits & move faster
+  const hitsByRarity = {common:2, uncommon:3, rare:4, epic:5, mythic:6};
+  requiredHits = hitsByRarity[pendingFish.rarity] || 3;
+  currentHits = 0;
+  missCount = 0;
+
+  statusText.textContent = `🎣 CÁ CẮN CÂU! Nhấn "Thu cần" đúng lúc con trỏ vào vùng xanh (0/${requiredHits})`;
+
+  startRhythmLoop();
+
+  // if not reeled within time, fish escapes (unless noMiss rod)
+  const b = rodBonus();
+  const escapeTime = 9000;
+  biteTimeout = setTimeout(()=>{
+    if(fishingState==='biting' && !b.noMiss){
+      fishEscape();
+    } else if(fishingState==='biting' && b.noMiss){
+      landFish();
+    }
+  }, escapeTime);
+}
+
+/* ---- Rhythm timing mechanic ---- */
+let rhythmAnim = null;
+let rhythmPos = 0;
+let rhythmDir = 1;
+let rhythmSpeed = 1.6;   // % per frame tick
+let zoneStart = 40, zoneWidth = 20; // percentages
+
+function randomizeZone(){
+  const b = rodBonus();
+  // easier rods (rareUp/epic/mythicEpic bonuses) get slightly wider zone
+  let width = 18;
+  if(b.rareUp) width += 2;
+  if(b.epic) width += 3;
+  if(b.mythicEpic) width += 4;
+  zoneWidth = Math.min(width, 34);
+  zoneStart = Math.random()*(100-zoneWidth);
+  rhythmZone.style.left = zoneStart+'%';
+  rhythmZone.style.width = zoneWidth+'%';
+}
+
+function startRhythmLoop(){
+  randomizeZone();
+  rhythmPos = 0;
+  rhythmDir = 1;
+  rhythmWrap.style.display='block';
+  // speed scales with rarity (harder fish move faster) and rod speed bonus
+  const rarityMult = {common:1, uncommon:1.15, rare:1.35, epic:1.55, mythic:1.8}[pendingFish.rarity] || 1;
+  rhythmSpeed = (1.4 + Math.random()*0.4) * rarityMult;
+
+  function tick(){
+    rhythmPos += rhythmSpeed * rhythmDir;
+    if(rhythmPos >= 100){ rhythmPos = 100; rhythmDir = -1; }
+    if(rhythmPos <= 0){ rhythmPos = 0; rhythmDir = 1; }
+    rhythmCursor.style.left = rhythmPos+'%';
+    rhythmAnim = requestAnimationFrame(tick);
+  }
+  rhythmAnim = requestAnimationFrame(tick);
+}
+
+function stopRhythmLoop(){
+  if(rhythmAnim){ cancelAnimationFrame(rhythmAnim); rhythmAnim=null; }
+}
+
+function tryReelHit(){
+  if(fishingState !== 'biting') return;
+  const b = rodBonus();
+  const inZone = b.noMiss ? true : (rhythmPos >= zoneStart && rhythmPos <= zoneStart+zoneWidth);
+
+  if(inZone){
+    SoundEngine.sfx.hit();
+    currentHits++;
+    comboFill.style.width = Math.round((currentHits/requiredHits)*100)+'%';
+    statusText.textContent = `✅ Đúng nhịp! (${currentHits}/${requiredHits})`;
+    if(currentHits >= requiredHits){
+      landFish();
+      return;
+    }
+    randomizeZone(); // new zone position for next hit, keeps challenge going
+  } else {
+    // Miss! penalize progress and flash red, risk losing the fish
+    SoundEngine.sfx.miss();
+    gameArea.classList.add('missFlash');
+    setTimeout(()=>gameArea.classList.remove('missFlash'), 300);
+    currentHits = Math.max(0, currentHits - 1);
+    comboFill.style.width = Math.round((currentHits/requiredHits)*100)+'%';
+    statusText.textContent = `❌ Nhấn lệch nhịp! Cẩn thận, cá sắp sổng (${currentHits}/${requiredHits})`;
+    missCount++;
+    if(missCount >= maxMisses){
+      fishEscape();
+    }
+  }
+}
+let missCount = 0;
+const maxMisses = 3;
+
+function fishEscape(){
+  SoundEngine.sfx.escape();
+  clearTimeout(biteTimeout);
+  stopRhythmLoop();
+  fishingState='idle';
+  currentHits=0; missCount=0;
+  statusText.textContent='😭 Cá đã sổng mất vì nhấn lệch nhịp! Thử lại nhé.';
+  castBtn.textContent='🎣 THẢ CÂU';
+  resetVisual();
+}
+
+function landFish(){
+  clearTimeout(biteTimeout);
+  stopRhythmLoop();
+  fishingState='idle';
+  currentHits=0; missCount=0;
+  const fish = pendingFish;
+  pendingFish=null;
+  castBtn.textContent='🎣 THẢ CÂU';
+  resetVisual();
+  statusText.textContent='Nhấn "Thả câu" để tiếp tục!';
+
+  // record
+  const weight = generateWeight(fish.rarity);
+  state.inventory[fish.id] = (state.inventory[fish.id]||0)+1;
+  if(!state.caughtIds[fish.id]) state.caughtIds[fish.id] = {count:0, maxWeight:0};
+  state.caughtIds[fish.id].count++;
+  if(weight > state.caughtIds[fish.id].maxWeight) state.caughtIds[fish.id].maxWeight = weight;
+  saveState();
+  updateHeader();
+  SoundEngine.sfx.catchFish(fish.rarity);
+  showCatchPopup(fish, weight);
+
+  if(fish.rarity==='epic' || fish.rarity==='mythic'){
+    broadcastFlex(fish, weight);
+  }
+}
+
+function generateWeight(rarity){
+  const ranges = {common:[0.2,3], uncommon:[1,8], rare:[5,40], epic:[30,300], mythic:[80,900]};
+  const [lo,hi] = ranges[rarity];
+  return Math.round((lo + Math.random()*(hi-lo))*10)/10;
+}
+
+function showCatchPopup(fish, weight){
+  const r = RARITIES[fish.rarity];
+  const pop = document.createElement('div');
+  pop.className='catchPopup';
+  pop.innerHTML = `
+    <div class="cfish">${fish.icon}</div>
+    <div class="cname">${fish.name}</div>
+    <div class="crarity bg-${r.color}">${r.label}</div>
+    <div class="cweight">Cân nặng: ${weight}kg</div>
+    <div class="ccoin">+ Đã thêm vào kho đồ 🎒</div>
+    <button class="cclose">Tuyệt vời!</button>
+  `;
+  gameArea.appendChild(pop);
+  pop.querySelector('.cclose').addEventListener('click', ()=> pop.remove());
+  setTimeout(()=>{ if(pop.parentNode) pop.remove(); }, 4500);
+}
+
+/* ============== SHOP ============== */
+function renderShop(){
+  const list = document.getElementById('shopList');
+  list.innerHTML = '';
+  RODS.forEach(rod=>{
+    const owned = state.ownedRods.includes(rod.id);
+    const equipped = state.equippedRod===rod.id;
+    const card = document.createElement('div');
+    card.className = 'rodCard' + (owned?' owned':'') + (equipped?' equipped':'');
+    let btnHtml;
+    if(equipped){
+      btnHtml = `<button class="rodBtn equippedBtn">Đang dùng</button>`;
+    } else if(owned){
+      btnHtml = `<button class="rodBtn" data-equip="${rod.id}">Trang bị</button>`;
+    } else {
+      const afford = state.coins >= rod.price;
+      btnHtml = `<button class="rodBtn ${afford?'':'disabled'}" data-buy="${rod.id}">${rod.price.toLocaleString('vi-VN')} 💰</button>`;
+    }
+    card.innerHTML = `
+      <div class="rodIcon">${rod.icon}</div>
+      <div class="rodInfo">
+        <div class="rname">${rod.name}</div>
+        <div class="rdesc">${rod.desc}</div>
+      </div>
+      ${btnHtml}
+    `;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('[data-buy]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-buy');
+      const rod = RODS.find(r=>r.id===id);
+      if(state.coins >= rod.price){
+        SoundEngine.sfx.buy();
+        state.coins -= rod.price;
+        state.ownedRods.push(id);
+        state.equippedRod = id;
+        saveState();
+        updateHeader();
+        renderShop();
+        toast(`Đã mua và trang bị ${rod.name}!`);
+        addSystemChatMsg(`🎉 Cần thủ #${state.playerId} vừa tậu ${rod.name}!`);
+      } else {
+        SoundEngine.sfx.error();
+        toast('Không đủ xu 😢');
+      }
+    });
+  });
+  list.querySelectorAll('[data-equip]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-equip');
+      SoundEngine.sfx.click();
+      state.equippedRod = id;
+      saveState();
+      renderShop();
+      toast('Đã trang bị cần câu!');
+    });
+  });
+}
+
+/* ============== COLLECTION ============== */
+function renderCollection(){
+  const grid = document.getElementById('fishGrid');
+  grid.innerHTML='';
+  const caughtCount = Object.keys(state.caughtIds).length;
+  document.getElementById('collectionProg').textContent = caughtCount + '/60';
+
+  FISH_LIST.forEach(fish=>{
+    const caught = state.caughtIds[fish.id];
+    const cell = document.createElement('div');
+    cell.className = 'fishCell' + (caught?'':' locked');
+    const r = RARITIES[fish.rarity];
+    cell.innerHTML = `
+      ${caught ? `<div class="fcount">x${caught.count}</div>` : ''}
+      <div class="fic">${caught ? fish.icon : '❔'}</div>
+      <div class="fnm r-${r.color}">${caught ? fish.name : '???'}</div>
+    `;
+    grid.appendChild(cell);
+  });
+}
+
+/* ============== INVENTORY / SELL ============== */
+function renderInventory(){
+  const wrap = document.getElementById('invList');
+  wrap.innerHTML='';
+  const ids = Object.keys(state.inventory).filter(id=>state.inventory[id]>0);
+  if(ids.length===0){
+    wrap.innerHTML = `<div style="text-align:center; color:var(--text-dim); padding:40px 10px; font-size:14px;">Kho đồ trống. Hãy đi câu cá nào! 🎣</div>`;
+    return;
+  }
+  let totalValue = 0;
+  ids.forEach(id=>{
+    const fish = FISH_LIST.find(f=>f.id==id);
+    const qty = state.inventory[id];
+    const r = RARITIES[fish.rarity];
+    totalValue += fish.price*qty;
+    const item = document.createElement('div');
+    item.className='invItem';
+    item.innerHTML = `
+      <div class="fic">${fish.icon}</div>
+      <div class="iinfo">
+        <div class="iname">${fish.name} <span class="r-${r.color}" style="font-size:10.5px;">(${r.label})</span></div>
+        <div class="iprice">${fish.price.toLocaleString('vi-VN')} xu / con</div>
+      </div>
+      <div class="iqty">x${qty}</div>
+      <button class="sellOneBtn" data-sell-id="${id}">Bán (${(fish.price*qty).toLocaleString('vi-VN')} 💰)</button>
+    `;
+    wrap.appendChild(item);
+  });
+  wrap.querySelectorAll('[data-sell-id]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.getAttribute('data-sell-id');
+      const fish = FISH_LIST.find(f=>f.id==id);
+      const qty = state.inventory[id]||0;
+      if(qty<=0) return;
+      SoundEngine.sfx.sell();
+      const b = rodBonus();
+      let value = fish.price*qty;
+      if(b.sellBonus) value = Math.round(value*(1+b.sellBonus));
+      state.coins += value;
+      delete state.inventory[id];
+      saveState();
+      updateHeader();
+      renderInventory();
+      toast(`Đã bán ${fish.name}, nhận ${value.toLocaleString('vi-VN')} xu!`);
+    });
+  });
+  const sellBtn = document.createElement('button');
+  sellBtn.className='sellAllBtn';
+  sellBtn.textContent = `💰 Bán tất cả (nhận ${totalValue.toLocaleString('vi-VN')} xu)`;
+  sellBtn.addEventListener('click', ()=>{
+    SoundEngine.sfx.sell();
+    const b = rodBonus();
+    let value = totalValue;
+    if(b.sellBonus) value = Math.round(value*(1+b.sellBonus));
+    state.coins += value;
+    state.inventory = {};
+    saveState();
+    updateHeader();
+    renderInventory();
+    toast(`Đã bán cá, nhận ${value.toLocaleString('vi-VN')} xu!`);
+  });
+  wrap.appendChild(sellBtn);
+}
+
+/* ============== CHAT (real, via Firebase Realtime Database) ============== */
+const chatMessages = document.getElementById('chatMessages');
+const CHAT_PATH = 'globalChat';
+const MAX_CHAT_HISTORY = 100;
+
+function addChatBubble(name, text, isMe=false, isSys=false, avatar=''){
+  const div = document.createElement('div');
+  div.className = 'msg' + (isMe?' me':'') + (isSys?' sys':'');
+  if(isSys){
+    div.innerHTML = `<div class="bubble2">${text}</div>`;
+  } else {
+    const av = avatarInnerHtml(avatar || (isMe ? '🙂' : '🎣'));
+    div.innerHTML = `
+      <div class="av">${av}</div>
+      <div>
+        ${!isMe?`<div class="name">${name}</div>`:''}
+        <div class="bubble2">${text}</div>
+      </div>
+    `;
+  }
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  while(chatMessages.children.length > 80) chatMessages.removeChild(chatMessages.firstChild);
+}
+
+function addSystemChatMsg(text){
+  addChatBubble('', `📢 ${text}`, false, true);
+}
+
+function broadcastFlex(fish, weight){
+  if(!currentUser) return; // only broadcast for real logged-in players
+  const r = RARITIES[fish.rarity];
+  const nick = state.nickname || currentUser.displayName || 'Cần thủ';
+  sendChatMessage(`📢 Chúc mừng cần thủ ${nick} vừa câu được ${fish.name} (${r.label} - nặng ${weight}kg) tại Hồ Vô Cực!`, true);
+}
+
+function sendChatMessage(text, isSystem=false){
+  if(!currentUser){
+    toast('Vui lòng đăng nhập để chat!');
+    return;
+  }
+  const nick = state.nickname || currentUser.displayName || 'Cần thủ';
+  const msg = {
+    uid: currentUser.uid,
+    name: nick,
+    avatar: state.avatar || '👤',
+    text: text,
+    sys: !!isSystem,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  };
+  const chatRef = db.ref(CHAT_PATH).push();
+  chatRef.set(msg).catch(()=>{ toast('Gửi tin nhắn thất bại, thử lại nhé.'); });
+  if(!isSystem) SoundEngine.sfx.msg();
+}
+
+function attachRealtimeChat(){
+  if(chatListenerAttached) return;
+  chatListenerAttached = true;
+  chatMessages.innerHTML='';
+  addSystemChatMsg('Chào mừng đến với Fishing World! Chỉ tin nhắn từ người chơi thật mới hiển thị ở đây 🎣');
+  db.ref(CHAT_PATH).limitToLast(MAX_CHAT_HISTORY).on('child_added', (snap)=>{
+    const m = snap.val();
+    if(!m || !m.text) return;
+    if(m.sys){
+      addSystemChatMsg(escapeHtml(m.text.replace(/^📢\s*/,'')));
+    } else {
+      const isMe = currentUser && m.uid === currentUser.uid;
+      addChatBubble(escapeHtml(m.name||'Cần thủ'), escapeHtml(m.text), isMe, false, m.avatar||'');
+    }
+  });
+}
+
+document.getElementById('chatSendBtn').addEventListener('click', sendChat);
+document.getElementById('chatInput').addEventListener('keydown', (e)=>{
+  if(e.key==='Enter') sendChat();
+});
+function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  if(!currentUser){
+    toast('Vui lòng đăng nhập để chat với các cần thủ khác!');
+    openAuthModal('login');
+    return;
+  }
+  if(/^data:image\//i.test(text) || /^[A-Za-z0-9+/=]{60,}$/.test(text)){
+    toast('Tin nhắn không hợp lệ (có thể là dữ liệu ảnh), vui lòng nhập chữ thường.');
+    return;
+  }
+  // Nếu có 1 "từ" quá dài (không dấu cách) sẽ làm vỡ layout chat -> chặn luôn
+  const longestWord = text.split(/\s+/).reduce((a,w)=>Math.max(a,w.length),0);
+  if(longestWord > 60){
+    toast('Tin nhắn có đoạn quá dài, vui lòng rút gọn.');
+    return;
+  }
+  sendChatMessage(text, false);
+  input.value='';
+}
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============== NAV ============== */
+const navBtns = document.querySelectorAll('.navBtn');
+function goToGameTab(){
+  navBtns.forEach(b=>b.classList.remove('active'));
+  document.querySelector('.navBtn[data-panel="game"]').classList.add('active');
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+}
+navBtns.forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    SoundEngine.unlock();
+    SoundEngine.sfx.open();
+    navBtns.forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = btn.getAttribute('data-panel');
+    document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));
+    if(target!=='game'){
+      document.getElementById('panel-'+target).classList.add('show');
+      if(target==='shop') renderShop();
+      if(target==='collection') renderCollection();
+      if(target==='inventory') renderInventory();
+    }
+  });
+});
+
+/* ============== CLOSE BUTTONS ============== */
+document.querySelectorAll('.closeBtn[data-close]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ SoundEngine.sfx.close(); goToGameTab(); });
+});
+
+/* ============== INIT ============== */
+updateHeader();
+resetVisual();
+
+})();
+</script>
+</body>
+</html>

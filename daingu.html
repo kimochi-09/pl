@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🐉 Phòng Đại Ngư - Fishing World</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+  :root{
+    --bg-deep:#04263f;
+    --bg-mid:#0a4a72;
+    --bg-light:#1980b8;
+    --gold:#ffd35c;
+    --gold-dark:#e0a900;
+    --panel:#0e2f4a;
+    --panel-light:#123a5c;
+    --text:#eaf6ff;
+    --text-dim:#9fc4de;
+    --epic:#c163ff;
+    --mythic:#ff7a45;
+    --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none;}
+  html,body{
+    margin:0; padding:0; height:100%; width:100%;
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(180deg,#0d3a5c 0%, var(--bg-deep) 60%, #021625 100%);
+    color:var(--text);
+    overflow:hidden;
+    touch-action:manipulation;
+  }
+  #app{position:relative; width:100%; height:100%; max-width:520px; margin:0 auto; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 0 40px rgba(0,0,0,.5);}
+  @media (min-width:701px){
+    #app{ max-width:1100px; border-radius:0; box-shadow:none; }
+  }
+
+  #header{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:8px 10px; background:rgba(2,20,34,.85); backdrop-filter:blur(4px);
+    border-bottom:1px solid rgba(255,255,255,.08); z-index:20; flex-shrink:0;
+  }
+  #backBtn{
+    display:flex; align-items:center; gap:6px; background:rgba(255,255,255,.06);
+    border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:8px 14px;
+    color:var(--text); font-size:13px; font-weight:700;
+  }
+  #header .stat{display:flex; align-items:center; gap:4px; font-weight:700; font-size:14px; background:rgba(255,255,255,.06); padding:5px 9px; border-radius:20px;}
+  #headerTitle{font-size:15px; font-weight:800; display:flex; align-items:center; gap:6px;}
+
+  #roomArea{
+    position:relative; flex:1; overflow-y:auto; overflow-x:hidden;
+    background:radial-gradient(ellipse at 50% 30%, #114d78 0%, #072f4d 55%, #021320 100%);
+    padding:14px 14px 100px;
+    display:flex; flex-direction:column; align-items:center; gap:16px;
+  }
+
+  .bubble{position:absolute; bottom:-20px; border-radius:50%; background:rgba(255,255,255,.12); animation:rise linear infinite; pointer-events:none;}
+  @keyframes rise{ to{ transform:translateY(-120vh); opacity:0;} }
+
+  #timerCard{
+    width:100%; max-width:400px; background:var(--panel); border:1px solid rgba(255,255,255,.1);
+    border-radius:18px; padding:18px 16px; text-align:center; box-shadow:0 8px 24px rgba(0,0,0,.35);
+    flex-shrink:0;
+  }
+  #timerLabel{font-size:12.5px; color:var(--text-dim); font-weight:700; letter-spacing:.5px; text-transform:uppercase;}
+  #timerCountdown{font-size:40px; font-weight:900; color:var(--gold); text-shadow:0 3px 10px rgba(0,0,0,.4); margin:4px 0 8px; font-variant-numeric:tabular-nums;}
+  #timerSub{font-size:12.5px; color:var(--text-dim);}
+
+  #warnBanner{
+    width:100%; max-width:400px; background:linear-gradient(135deg,#ff7a45,#c163ff);
+    border-radius:16px; padding:14px 16px; text-align:center; font-weight:800; font-size:14.5px;
+    display:none; animation:warnPulse 1s infinite; box-shadow:0 6px 20px rgba(193,99,255,.4);
+    flex-shrink:0;
+  }
+  #warnBanner.show{display:block;}
+  @keyframes warnPulse{ 0%,100%{transform:scale(1);} 50%{transform:scale(1.03);} }
+
+  #bossStage{
+    width:100%; max-width:400px; min-height:220px; background:var(--panel);
+    border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:20px 16px;
+    display:none; flex-direction:column; align-items:center; gap:10px;
+    box-shadow:0 10px 30px rgba(0,0,0,.4); flex-shrink:0; position:relative; overflow:hidden;
+  }
+  #bossStage.show{display:flex;}
+  #bossStage.mythic{border-color:var(--mythic); box-shadow:0 0 40px rgba(255,122,69,.35), 0 10px 30px rgba(0,0,0,.4);}
+  #bossStage.epic{border-color:var(--epic); box-shadow:0 0 40px rgba(193,99,255,.3), 0 10px 30px rgba(0,0,0,.4);}
+  #bossIcon{font-size:78px; animation:bossWiggle .5s infinite alternate; filter:drop-shadow(0 6px 14px rgba(0,0,0,.5));}
+  @keyframes bossWiggle{ from{transform:rotate(-6deg) scale(1);} to{transform:rotate(6deg) scale(1.04);} }
+  #bossName{font-size:19px; font-weight:900;}
+  #bossRarity{font-size:12.5px; font-weight:800; padding:3px 10px; border-radius:20px;}
+  #bossRarity.epic{background:rgba(193,99,255,.2); color:var(--epic);}
+  #bossRarity.mythic{background:rgba(255,122,69,.2); color:var(--mythic);}
+  #bossHpWrap{width:100%; height:16px; background:rgba(0,0,0,.35); border-radius:10px; overflow:hidden; border:1px solid rgba(255,255,255,.15); margin-top:4px;}
+  #bossHpFill{height:100%; width:100%; background:linear-gradient(90deg,#ff5555,#ffb03c); transition:width .15s linear;}
+  #bossHpText{font-size:12px; color:var(--text-dim); margin-top:2px;}
+
+  #catchBtn{
+    margin-top:8px; width:100%; background:linear-gradient(180deg,#ffe08a,var(--gold-dark));
+    color:#3a2400; border:none; border-radius:16px; padding:16px; font-size:17px; font-weight:900;
+    box-shadow:0 6px 0 #9e6f00, 0 10px 18px rgba(0,0,0,.4); letter-spacing:.5px;
+    transition:transform .06s;
+  }
+  #catchBtn:active{transform:translateY(4px); box-shadow:0 2px 0 #9e6f00, 0 4px 10px rgba(0,0,0,.4);}
+  #catchBtn:disabled{opacity:.45;}
+
+  #idleCard{
+    width:100%; max-width:400px; background:var(--panel-light); border:1px dashed rgba(255,255,255,.15);
+    border-radius:16px; padding:22px 16px; text-align:center; color:var(--text-dim); font-size:13.5px;
+    flex-shrink:0;
+  }
+  #idleCard .bigIcon{font-size:40px; margin-bottom:8px; opacity:.7;}
+
+  #winnerBanner{
+    width:100%; max-width:400px; background:linear-gradient(135deg,#3ddc84,#1980b8);
+    border-radius:16px; padding:16px; text-align:center; font-weight:800; font-size:14.5px;
+    display:none; flex-shrink:0; box-shadow:0 6px 20px rgba(61,220,132,.35);
+  }
+  #winnerBanner.show{display:block;}
+
+  #logCard{
+    width:100%; max-width:400px; background:var(--panel); border:1px solid rgba(255,255,255,.08);
+    border-radius:16px; padding:12px 14px; flex-shrink:0;
+  }
+  #logCard h4{margin:0 0 8px; font-size:12.5px; color:var(--text-dim); text-transform:uppercase; letter-spacing:.5px;}
+  #logList{display:flex; flex-direction:column; gap:6px; max-height:180px; overflow-y:auto;}
+  .logItem{font-size:12.5px; padding:8px 10px; background:rgba(255,255,255,.04); border-radius:10px; display:flex; justify-content:space-between; gap:8px;}
+  .logItem .lname{color:var(--gold); font-weight:700;}
+  .logEmpty{font-size:12.5px; color:var(--text-dim); text-align:center; padding:10px 0;}
+
+  #onlineCard{
+    width:100%; max-width:400px; display:flex; align-items:center; justify-content:center; gap:6px;
+    font-size:12px; color:var(--text-dim); flex-shrink:0;
+  }
+  #onlineCard .dot{width:7px; height:7px; border-radius:50%; background:#3ddc84; box-shadow:0 0 6px #3ddc84;}
+
+  #loginGate{
+    position:absolute; inset:0; background:rgba(2,10,18,.9); z-index:50;
+    display:none; align-items:center; justify-content:center; padding:24px; text-align:center;
+  }
+  #loginGate.show{display:flex;}
+  #loginGate .gateBox{background:var(--panel); border-radius:18px; padding:26px 20px; max-width:320px; border:1px solid rgba(255,255,255,.1);}
+  #loginGate .gateBox .gi{font-size:40px; margin-bottom:10px;}
+  #loginGate .gateBox h3{margin:0 0 6px; font-size:17px;}
+  #loginGate .gateBox p{margin:0 0 16px; font-size:13px; color:var(--text-dim); line-height:1.5;}
+  #loginGate .gateBox button{
+    background:linear-gradient(180deg,#ffe08a,var(--gold-dark)); color:#3a2400; border:none;
+    border-radius:12px; padding:12px 22px; font-weight:800; font-size:14px; box-shadow:0 4px 0 #9e6f00;
+  }
+
+  #toastWrap{position:fixed; top:70px; left:50%; transform:translateX(-50%); z-index:80; display:flex; flex-direction:column; gap:8px; align-items:center; width:92%; max-width:400px;}
+  .toast{background:rgba(10,30,48,.95); border:1px solid rgba(255,255,255,.15); color:var(--text); padding:10px 16px; border-radius:12px; font-size:13px; font-weight:700; box-shadow:0 6px 18px rgba(0,0,0,.4); text-align:center;}
+
+  #fireworksLayer{position:fixed; inset:0; pointer-events:none; z-index:70; overflow:hidden;}
+  .spark{position:absolute; font-size:22px; animation:sparkFly 1.1s ease-out forwards;}
+  @keyframes sparkFly{ 0%{transform:translateY(0) scale(0.5); opacity:1;} 100%{transform:translateY(-140px) scale(1.3); opacity:0;} }
+
+  ::-webkit-scrollbar{width:0; height:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="header">
+    <button id="backBtn"><span>←</span> Về hồ câu</button>
+    <div id="headerTitle">🐉 Phòng Đại Ngư</div>
+    <div class="stat"><span class="ic">💰</span><span id="coinDisplay">0</span></div>
+  </div>
+
+  <div id="roomArea">
+
+    <div id="timerCard">
+      <div id="timerLabel">Đại Ngư tiếp theo xuất hiện sau</div>
+      <div id="timerCountdown">05:00</div>
+      <div id="timerSub">Cứ mỗi 5 phút, một con cá Huyền Thoại hoặc Thần Thoại sẽ xuất hiện cho tất cả cần thủ cùng câu!</div>
+    </div>
+
+    <div id="warnBanner">⚠️ Đại Ngư sắp xuất hiện! Chuẩn bị cần câu...</div>
+
+    <div id="bossStage">
+      <div id="bossRarity"></div>
+      <div id="bossIcon">🐉</div>
+      <div id="bossName">???</div>
+      <div id="bossHpWrap"><div id="bossHpFill"></div></div>
+      <div id="bossHpText">Máu: 100%</div>
+      <button id="catchBtn">🎣 CÂU NGAY!</button>
+    </div>
+
+    <div id="idleCard">
+      <div class="bigIcon">🌊</div>
+      Chưa có Đại Ngư nào xuất hiện. Hãy chờ đồng hồ đếm ngược!
+    </div>
+
+    <div id="winnerBanner" id="winnerBanner"></div>
+
+    <div id="logCard">
+      <h4>📜 Lịch sử săn Đại Ngư</h4>
+      <div id="logList"><div class="logEmpty">Chưa có ai câu được Đại Ngư nào cả.</div></div>
+    </div>
+
+    <div id="onlineCard"><span class="dot"></span><span id="onlineText">Đang kết nối...</span></div>
+
+  </div>
+
+  <div id="loginGate">
+    <div class="gateBox">
+      <div class="gi">🔒</div>
+      <h3>Cần đăng nhập</h3>
+      <p>Bạn cần đăng nhập ở màn hình câu cá chính để tham gia Phòng Đại Ngư và giữ lại phần thưởng.</p>
+      <button id="gateBackBtn">Quay lại đăng nhập</button>
+    </div>
+  </div>
+
+  <div id="toastWrap"></div>
+  <div id="fireworksLayer"></div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============== FIREBASE (dùng chung project với hồ câu chính) ============== */
+const firebaseConfig = {
+  apiKey: "AIzaSyDH_skpX3D9sD3zz3iiyrHnB28BIVvIMM0",
+  authDomain: "hihi-c6af6.firebaseapp.com",
+  databaseURL: "https://hihi-c6af6-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "hihi-c6af6",
+  storageBucket: "hihi-c6af6.firebasestorage.app",
+  messagingSenderId: "164013580789",
+  appId: "1:164013580789:web:94227e94c6d517170f40bc"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
+let currentUser = null;
+
+/* ============== DỮ LIỆU ĐẠI NGƯ ============== */
+const BOSS_FISH = [
+  {name:"Kraken Con", rarity:"mythic", icon:"🐙", reward:[30000,60000], hp:100},
+  {name:"Cá chép vàng cổ đại", rarity:"mythic", icon:"🐉", reward:[35000,70000], hp:100},
+  {name:"Cá rồng tiên", rarity:"mythic", icon:"🐲", reward:[40000,80000], hp:100},
+  {name:"Cá mập trắng khổng lồ", rarity:"epic", icon:"🦈", reward:[8000,15000], hp:70},
+  {name:"Cá voi Táng huyền thoại", rarity:"epic", icon:"🐋", reward:[8000,15000], hp:70},
+  {name:"Cá rồng ruy băng cổ", rarity:"epic", icon:"🎏", reward:[8000,15000], hp:70},
+  {name:"Cá kiếm khổng lồ", rarity:"epic", icon:"🗡️", reward:[8000,15000], hp:70},
+  {name:"Rùa biển ngàn năm", rarity:"epic", icon:"🐢", reward:[8000,15000], hp:70}
+];
+const RARITY_LABEL = {epic:"Huyền Thoại", mythic:"Thần Thoại"};
+
+/* ============== CẤU HÌNH THỜI GIAN ============== */
+const CYCLE_MS = 5 * 60 * 1000;      // 5 phút / chu kỳ
+const WARN_BEFORE_MS = 30 * 1000;    // cảnh báo trước 30s
+const BOSS_ACTIVE_MS = 60 * 1000;    // Đại Ngư xuất hiện, tồn tại 60s để mọi người câu
+const ROOM_ROOT = 'bossRoom';
+
+/* ============== STATE LOCAL (đồng bộ nhẹ với hồ câu chính) ============== */
+const SAVE_KEY = "fishingWorld_save_v1";
+function loadLocalState(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return null;
+}
+let localState = loadLocalState();
+
+function saveLocalState(){
+  try{ localStorage.setItem(SAVE_KEY, JSON.stringify(localState)); }catch(e){}
+  if(currentUser){
+    db.ref('users/'+currentUser.uid+'/gameState').set(localState).catch(()=>{});
+  }
+}
+
+const coinDisplay = document.getElementById('coinDisplay');
+function updateCoinDisplay(){
+  coinDisplay.textContent = (localState && localState.coins ? localState.coins : 0).toLocaleString('vi-VN');
+}
+updateCoinDisplay();
+
+function toast(msg){
+  const wrap = document.getElementById('toastWrap');
+  const t = document.createElement('div');
+  t.className='toast';
+  t.textContent = msg;
+  wrap.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity .3s'; t.style.opacity='0'; setTimeout(()=>t.remove(),300); }, 2200);
+}
+
+/* ============== BONG BÓNG NỀN ============== */
+function spawnBubbles(){
+  const area = document.getElementById('roomArea');
+  setInterval(()=>{
+    const b = document.createElement('div');
+    b.className='bubble';
+    const size = 6 + Math.random()*16;
+    b.style.width=size+'px'; b.style.height=size+'px';
+    b.style.left = Math.random()*100+'%';
+    b.style.animationDuration = (4+Math.random()*5)+'s';
+    area.appendChild(b);
+    setTimeout(()=>b.remove(), 9000);
+  }, 700);
+}
+spawnBubbles();
+
+/* ============== ĐĂNG NHẬP GATE ============== */
+const loginGate = document.getElementById('loginGate');
+document.getElementById('backBtn').addEventListener('click', ()=>{ window.location.href = 'cauca.html'; });
+document.getElementById('gateBackBtn').addEventListener('click', ()=>{ window.location.href = 'cauca.html'; });
+
+auth.onAuthStateChanged((user)=>{
+  currentUser = user;
+  if(user){
+    loginGate.classList.remove('show');
+    db.ref('users/'+user.uid+'/gameState').once('value').then(snap=>{
+      const v = snap.val();
+      if(v){ localState = v; updateCoinDisplay(); }
+    });
+    setupPresence(user);
+  } else {
+    loginGate.classList.add('show');
+  }
+});
+
+function setupPresence(user){
+  const nick = (localState && localState.nickname) || user.displayName || 'Cần thủ';
+  const presenceRef = db.ref(ROOM_ROOT+'/presence/'+user.uid);
+  db.ref('.info/connected').on('value', (snap)=>{
+    if(snap.val()===true){
+      presenceRef.onDisconnect().remove();
+      presenceRef.set({ nickname: nick, ts: firebase.database.ServerValue.TIMESTAMP });
+    }
+  });
+  db.ref(ROOM_ROOT+'/presence').on('value', (snap)=>{
+    const val = snap.val() || {};
+    const count = Object.keys(val).length;
+    document.getElementById('onlineText').textContent = count + ' cần thủ đang trong phòng';
+  });
+}
+
+/* ============== ĐỒNG HỒ ĐIỀU KHIỂN CHU KỲ (đồng bộ server-time cho mọi người) ============== */
+// Toàn bộ người chơi đọc chung 1 mốc "cycleStart" trên Firebase để đồng bộ đếm ngược & spawn boss.
+// Người đầu tiên vào phòng (hoặc khi hết hạn) sẽ khởi tạo mốc mới bằng transaction để tránh xung đột.
+const cycleRef = db.ref(ROOM_ROOT+'/cycle');
+let cycleData = null; // {start, bossIndex, bossHp, active(boolean derived), claimedBy}
+let now = Date.now();
+let serverOffset = 0;
+
+db.ref('.info/serverTimeOffset').on('value', snap=>{ serverOffset = snap.val() || 0; });
+function serverNow(){ return Date.now() + serverOffset; }
+
+function ensureCycle(){
+  cycleRef.transaction(cur=>{
+    const t = serverNow();
+    if(!cur || !cur.start || (t - cur.start) > CYCLE_MS + BOSS_ACTIVE_MS + 5000){
+      const idx = Math.floor(Math.random()*BOSS_FISH.length);
+      const fish = BOSS_FISH[idx];
+      return {
+        start: t,
+        bossIndex: idx,
+        hp: fish.hp,
+        maxHp: fish.hp,
+        claimedBy: null,
+        claimedName: null
+      };
+    }
+    return cur;
+  });
+}
+ensureCycle();
+
+cycleRef.on('value', (snap)=>{
+  cycleData = snap.val();
+  renderCycle();
+});
+
+/* ============== RENDER TRẠNG THÁI PHÒNG ============== */
+const timerCountdown = document.getElementById('timerCountdown');
+const timerCard = document.getElementById('timerCard');
+const warnBanner = document.getElementById('warnBanner');
+const bossStage = document.getElementById('bossStage');
+const idleCard = document.getElementById('idleCard');
+const bossIcon = document.getElementById('bossIcon');
+const bossName = document.getElementById('bossName');
+const bossRarity = document.getElementById('bossRarity');
+const bossHpFill = document.getElementById('bossHpFill');
+const bossHpText = document.getElementById('bossHpText');
+const catchBtn = document.getElementById('catchBtn');
+const winnerBanner = document.getElementById('winnerBanner');
+
+let lastPhase = '';
+let warnedThisCycle = false;
+
+function fmtTime(ms){
+  if(ms<0) ms=0;
+  const s = Math.ceil(ms/1000);
+  const mm = String(Math.floor(s/60)).padStart(2,'0');
+  const ss = String(s%60).padStart(2,'0');
+  return mm+':'+ss;
+}
+
+function renderCycle(){
+  if(!cycleData || !cycleData.start) return;
+  const fish = BOSS_FISH[cycleData.bossIndex] || BOSS_FISH[0];
+  const t = serverNow();
+  const elapsed = t - cycleData.start;
+  const spawnAt = CYCLE_MS; // boss spawns exactly at CYCLE_MS after cycle start
+  const despawnAt = CYCLE_MS + BOSS_ACTIVE_MS;
+
+  if(elapsed < spawnAt){
+    // đang đếm ngược chờ Đại Ngư
+    const remain = spawnAt - elapsed;
+    timerCard.style.display='block';
+    timerCountdown.textContent = fmtTime(remain);
+    bossStage.classList.remove('show');
+    winnerBanner.classList.remove('show');
+    idleCard.style.display = cycleData.claimedBy ? 'none' : 'block';
+
+    if(remain <= WARN_BEFORE_MS){
+      warnBanner.classList.add('show');
+      if(!warnedThisCycle){
+        warnedThisCycle = true;
+        toast('⚠️ Đại Ngư sắp xuất hiện trong 30 giây!');
+      }
+    } else {
+      warnBanner.classList.remove('show');
+    }
+
+    if(cycleData.claimedBy){
+      showWinner(fish, cycleData.claimedName);
+    }
+    lastPhase = 'waiting';
+  } else if(elapsed < despawnAt){
+    // Đại Ngư đang xuất hiện
+    warnedThisCycle = false;
+    timerCard.style.display='none';
+    warnBanner.classList.remove('show');
+    idleCard.style.display='none';
+
+    if(lastPhase !== 'active'){
+      toast('🐉 Đại Ngư đã xuất hiện! Nhấn CÂU NGAY để tranh giành!');
+    }
+    lastPhase = 'active';
+
+    bossStage.classList.add('show');
+    bossStage.classList.toggle('mythic', fish.rarity==='mythic');
+    bossStage.classList.toggle('epic', fish.rarity==='epic');
+    bossIcon.textContent = fish.icon;
+    bossName.textContent = fish.name;
+    bossRarity.textContent = RARITY_LABEL[fish.rarity];
+    bossRarity.className = fish.rarity;
+
+    const hp = Math.max(0, cycleData.hp);
+    const maxHp = cycleData.maxHp || fish.hp;
+    const pct = Math.round((hp/maxHp)*100);
+    bossHpFill.style.width = pct+'%';
+    bossHpText.textContent = 'Máu: '+pct+'%';
+
+    if(cycleData.claimedBy){
+      catchBtn.disabled = true;
+      catchBtn.textContent = '✅ Đã có người câu được!';
+      showWinner(fish, cycleData.claimedName);
+    } else if(hp<=0){
+      catchBtn.disabled = true;
+      catchBtn.textContent = '💥 Đang phân định người thắng...';
+    } else {
+      catchBtn.disabled = false;
+      catchBtn.textContent = '🎣 CÂU NGAY!';
+      winnerBanner.classList.remove('show');
+    }
+  } else {
+    // hết vòng, chờ vòng mới được tạo
+    lastPhase = 'ended';
+    timerCard.style.display='block';
+    timerCountdown.textContent = '00:00';
+    bossStage.classList.remove('show');
+    warnBanner.classList.remove('show');
+    if(!cycleData.claimedBy){
+      idleCard.style.display='block';
+      winnerBanner.classList.remove('show');
+    }
+    ensureCycle();
+  }
+}
+
+function showWinner(fish, name){
+  winnerBanner.classList.add('show');
+  winnerBanner.textContent = `🏆 ${name} vừa câu được ${fish.name} (${RARITY_LABEL[fish.rarity]})! Chúc mừng!`;
+}
+
+setInterval(renderCycle, 250);
+
+/* ============== NHẤN CÂU: TRANH GIÀNH BẰNG TRANSACTION AN TOÀN ============== */
+catchBtn.addEventListener('click', ()=>{
+  if(!currentUser){
+    toast('Vui lòng đăng nhập ở màn hình chính trước!');
+    return;
+  }
+  if(!cycleData || cycleData.claimedBy){
+    return;
+  }
+  catchBtn.disabled = true;
+
+  const hitDamage = 15 + Math.floor(Math.random()*15);
+  const nick = (localState && localState.nickname) || currentUser.displayName || 'Cần thủ';
+
+  cycleRef.transaction(cur=>{
+    if(!cur || cur.claimedBy) return cur; // đã có người thắng rồi, không làm gì
+    let newHp = (cur.hp||0) - hitDamage;
+    if(newHp <= 0){
+      newHp = 0;
+      cur.hp = 0;
+      cur.claimedBy = currentUser.uid;
+      cur.claimedName = nick;
+    } else {
+      cur.hp = newHp;
+    }
+    return cur;
+  }, (error, committed, snap)=>{
+    catchBtn.disabled = false;
+    if(error || !committed) return;
+    const result = snap.val();
+    if(result && result.claimedBy === currentUser.uid){
+      grantReward(result);
+    }
+  });
+});
+
+function grantReward(result){
+  const fish = BOSS_FISH[result.bossIndex] || BOSS_FISH[0];
+  const min = fish.reward[0], max = fish.reward[1];
+  const coins = min + Math.floor(Math.random()*(max-min+1));
+
+  if(!localState) localState = {coins:0, ownedRods:["tre"], equippedRod:"tre", inventory:{}, caughtIds:{}, nickname:"", avatar:"👤", playerId:Math.floor(1000+Math.random()*8999)};
+  localState.coins = (localState.coins||0) + coins;
+  saveLocalState();
+  updateCoinDisplay();
+
+  logCatch(fish, (localState.nickname||'Cần thủ'), coins);
+  fireworks();
+  toast(`🎉 Bạn đã câu được ${fish.name}! Nhận ${coins.toLocaleString('vi-VN')} xu!`);
+
+  // Thông báo cho tất cả người chơi khác qua globalChat (dùng chung hệ thống chat của hồ câu chính)
+  const nick = localState.nickname || (currentUser && currentUser.displayName) || 'Cần thủ';
+  db.ref('globalChat').push().set({
+    uid: currentUser.uid,
+    name: nick,
+    avatar: localState.avatar || '👤',
+    text: `🐉 Tại Phòng Đại Ngư, cần thủ ${nick} vừa câu được ${fish.name} (${RARITY_LABEL[fish.rarity]}), nhận ${coins.toLocaleString('vi-VN')} xu!`,
+    sys: true,
+    ts: firebase.database.ServerValue.TIMESTAMP
+  }).catch(()=>{});
+}
+
+/* ============== LỊCH SỬ SĂN ĐẠI NGƯ ============== */
+const LOG_PATH = ROOM_ROOT+'/log';
+const logList = document.getElementById('logList');
+let logAttached = false;
+
+function logCatch(fish, name, coins){
+  db.ref(LOG_PATH).push({
+    fishName: fish.name, rarity: fish.rarity, icon: fish.icon,
+    name, coins, ts: firebase.database.ServerValue.TIMESTAMP
+  }).catch(()=>{});
+}
+
+function attachLog(){
+  if(logAttached) return;
+  logAttached = true;
+  db.ref(LOG_PATH).limitToLast(15).on('value', (snap)=>{
+    const val = snap.val();
+    logList.innerHTML='';
+    if(!val){
+      logList.innerHTML = '<div class="logEmpty">Chưa có ai câu được Đại Ngư nào cả.</div>';
+      return;
+    }
+    const items = Object.values(val).sort((a,b)=>(b.ts||0)-(a.ts||0));
+    items.forEach(it=>{
+      const div = document.createElement('div');
+      div.className='logItem';
+      div.innerHTML = `<span>${it.icon||'🐟'} <span class="lname">${escapeHtml(it.name||'')}</span> câu được ${escapeHtml(it.fishName||'')}</span><span>+${(it.coins||0).toLocaleString('vi-VN')} xu</span>`;
+      logList.appendChild(div);
+    });
+  });
+}
+attachLog();
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ============== HIỆU ỨNG PHÁO HOA KHI THẮNG ============== */
+function fireworks(){
+  const layer = document.getElementById('fireworksLayer');
+  const icons = ['🎉','✨','🎊','⭐','💰'];
+  for(let i=0;i<24;i++){
+    const s = document.createElement('div');
+    s.className='spark';
+    s.textContent = icons[Math.floor(Math.random()*icons.length)];
+    s.style.left = (10+Math.random()*80)+'%';
+    s.style.top = (40+Math.random()*30)+'%';
+    s.style.animationDelay = (Math.random()*0.3)+'s';
+    layer.appendChild(s);
+    setTimeout(()=>s.remove(), 1600);
+  }
+}
+
+})();
+</script>
+</body>
+</html>
